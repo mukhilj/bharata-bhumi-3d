@@ -1,5 +1,5 @@
 /* ————————————————————————————————————————————————————————————
-   Bhārata Bhūmi — Physical features of the Indian subcontinent in 3D
+   India: Relief & Physical Features — Indian subcontinent in 3D
    Terrain: SRTM30_PLUS (Scripps/UCSD) 30-arc-second land + ocean elevation
    Frame:   60–100°E, 5°S–40°N · 72 tiles of 5°×5° · int16 metres
    ———————————————————————————————————————————————————————————— */

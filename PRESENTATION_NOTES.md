@@ -1,4 +1,4 @@
-# Presentation Notes — using Bhārata Bhūmi with 6–12 children
+# Presentation Notes — using India: Relief & Features with 6–12 children
 
 These notes connect the app's layers to the geography album. The app is an *aid to
 imagination*, not a replacement for charts, stories, or the children's own model-making.

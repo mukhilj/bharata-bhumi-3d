@@ -1,4 +1,4 @@
-# Bhārata Bhūmi — Physical Features of the Indian Subcontinent in 3D
+# India: Relief & Physical Features — Indian Subcontinent in 3D
 
 An interactive 3D physical map of the Indian subcontinent (60–100°E, 5°S–40°N) built from
 real satellite-derived elevation data — land relief **and** ocean-floor bathymetry at
