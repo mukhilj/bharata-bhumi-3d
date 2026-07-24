@@ -74,12 +74,23 @@
     </section>
 
     <footer>
-      <p>Touch the land to read its height.<br>Drag to turn · scroll to come closer.</p>
+      <p>Touch the land to read its height.<br>Drag to pan · right-drag to turn · scroll to come closer.</p>
     </footer>
   </aside>
 
   <div id="probe" hidden></div>
-  <div id="compass"><svg viewBox="0 0 40 40"><g id="needle"><polygon points="20,4 24,22 20,18 16,22" fill="#e05a4e"/><polygon points="20,36 24,22 20,26 16,22" fill="#cfd6df"/></g><text x="20" y="13" text-anchor="middle" font-size="7" fill="#eef2f7">N</text></svg></div>
+
+  <div id="navcluster">
+    <button id="compass" title="Click to face North">
+      <svg viewBox="0 0 40 40"><g id="needle"><polygon points="20,4 24,22 20,18 16,22" fill="#e05a4e"/><polygon points="20,36 24,22 20,26 16,22" fill="#cfd6df"/></g><text x="20" y="13" text-anchor="middle" font-size="7" fill="#eef2f7">N</text></svg>
+    </button>
+    <div id="padctrl">
+      <button id="pad-up"    class="pad" title="Pan north">▲</button>
+      <button id="pad-left"  class="pad" title="Pan west">◀</button>
+      <button id="pad-right" class="pad" title="Pan east">▶</button>
+      <button id="pad-down"  class="pad" title="Pan south">▼</button>
+    </div>
+  </div>
 </div>
 <script type="module" src="js/main.js"></script>
 </body>

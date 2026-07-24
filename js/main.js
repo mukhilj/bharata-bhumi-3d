@@ -47,6 +47,11 @@ controls.maxPolarAngle = Math.PI * 0.495;
 controls.minDistance = 0.15;
 controls.maxDistance = 90;
 controls.target.set(0, 0, 2);
+controls.screenSpacePanning = true;
+// one-finger drag pans the map (like a real map app); two fingers rotate/tilt & zoom
+controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+// mouse: left drag pans (Google-Maps style), right drag (or two-finger trackpad) rotates/tilts
+controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -535,6 +540,56 @@ document.querySelectorAll('.presets button').forEach(b => b.onclick = () => {
           c0: controls.target.clone(), c1: new THREE.Vector3(...v.target) };
 });
 
+/* ————— directional pad: translate camera + target together in screen space,
+         so you can travel across the map at any zoom level, not just spin in place ————— */
+const panState = { up: false, down: false, left: false, right: false };
+const _panRight = new THREE.Vector3(), _panUp = new THREE.Vector3(), _panOffset = new THREE.Vector3();
+
+function panStep(dx, dz) {                          // dx: +right/-left, dz: +away/-toward (screen-space)
+  const dist = camera.position.distanceTo(controls.target);
+  const speed = dist * 0.028;                        // scales with zoom, like drag-panning does
+  _panRight.setFromMatrixColumn(camera.matrix, 0);
+  _panUp.setFromMatrixColumn(camera.matrix, 1);
+  _panOffset.set(0, 0, 0)
+    .addScaledVector(_panRight, dx * speed)
+    .addScaledVector(_panUp, dz * speed);
+  camera.position.add(_panOffset);
+  controls.target.add(_panOffset);
+}
+
+function bindPad(id, key) {
+  const el = document.getElementById(id);
+  const start = ev => { ev.preventDefault(); panState[key] = true; el.classList.add('held'); };
+  const stop  = ()  => { panState[key] = false; el.classList.remove('held'); };
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointerleave', stop);
+  el.addEventListener('pointercancel', stop);
+}
+bindPad('pad-up', 'up'); bindPad('pad-down', 'down');
+bindPad('pad-left', 'left'); bindPad('pad-right', 'right');
+
+/* also let arrow keys pan — handy once a mouse/trackpad is set aside for a touch display */
+addEventListener('keydown', e => {
+  const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  if (map[e.key]) { panState[map[e.key]] = true; e.preventDefault(); }
+});
+addEventListener('keyup', e => {
+  const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  if (map[e.key]) panState[map[e.key]] = false;
+});
+
+/* ————— compass: click to smoothly spin the view so North points up again,
+         keeping current zoom and tilt exactly as they are ————— */
+let northSpin = null;
+document.getElementById('compass').addEventListener('click', () => {
+  const offset = camera.position.clone().sub(controls.target);
+  const sph = new THREE.Spherical().setFromVector3(offset);
+  let d = -sph.theta;
+  d = Math.atan2(Math.sin(d), Math.cos(d));           // shortest turn direction
+  northSpin = { t: 0, theta0: sph.theta, dTheta: d, phi: sph.phi, radius: sph.radius };
+});
+
 /* hypsometric legend */
 (function drawRamp() {
   const cv = document.getElementById('ramp'), ctx = cv.getContext('2d');
@@ -598,6 +653,22 @@ renderer.setAnimationLoop(() => {
     camera.position.lerpVectors(fly.p0, fly.p1, s);
     controls.target.lerpVectors(fly.c0, fly.c1, s);
     if (fly.t >= 1) fly = null;
+  }
+  if (panState.up || panState.down || panState.left || panState.right) {
+    let dx = 0, dz = 0;
+    if (panState.left) dx -= 1;
+    if (panState.right) dx += 1;
+    if (panState.up) dz += 1;
+    if (panState.down) dz -= 1;
+    panStep(dx, dz);
+  }
+  if (northSpin) {
+    northSpin.t = Math.min(1, northSpin.t + 0.045);
+    const s = northSpin.t * northSpin.t * (3 - 2 * northSpin.t);
+    const theta = northSpin.theta0 + northSpin.dTheta * s;
+    const off = new THREE.Vector3().setFromSphericalCoords(northSpin.radius, northSpin.phi, theta);
+    camera.position.copy(controls.target).add(off);
+    if (northSpin.t >= 1) northSpin = null;
   }
   controls.update();
   updatePeakVisibility();
