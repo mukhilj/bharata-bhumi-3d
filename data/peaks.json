@@ -1,0 +1,178 @@
+[
+ {
+  "n": "Mount Everest",
+  "h": 8849,
+  "lon": 86.925,
+  "lat": 27.988,
+  "g": "himadri",
+  "note": "Highest peak on Earth (Nepal\u2013China)"
+ },
+ {
+  "n": "Kangchenjunga",
+  "h": 8586,
+  "lon": 88.147,
+  "lat": 27.703,
+  "g": "himadri",
+  "note": "Highest peak in India (Sikkim)"
+ },
+ {
+  "n": "Lhotse",
+  "h": 8516,
+  "lon": 86.933,
+  "lat": 27.962,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "Makalu",
+  "h": 8485,
+  "lon": 87.089,
+  "lat": 27.89,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "Dhaulagiri",
+  "h": 8167,
+  "lon": 83.495,
+  "lat": 28.696,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "Manaslu",
+  "h": 8163,
+  "lon": 84.56,
+  "lat": 28.55,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "Annapurna I",
+  "h": 8091,
+  "lon": 83.82,
+  "lat": 28.596,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "Nanga Parbat",
+  "h": 8126,
+  "lon": 74.589,
+  "lat": 35.238,
+  "g": "himadri",
+  "note": "Western anchor of the Himalaya"
+ },
+ {
+  "n": "Namcha Barwa",
+  "h": 7782,
+  "lon": 95.066,
+  "lat": 29.643,
+  "g": "himadri",
+  "note": "Eastern anchor of the Himalaya"
+ },
+ {
+  "n": "Nanda Devi",
+  "h": 7816,
+  "lon": 79.971,
+  "lat": 30.377,
+  "g": "himadri",
+  "note": "Highest peak entirely within India"
+ },
+ {
+  "n": "Kamet",
+  "h": 7756,
+  "lon": 79.592,
+  "lat": 30.92,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "Nun",
+  "h": 7135,
+  "lon": 76.024,
+  "lat": 33.984,
+  "g": "himadri",
+  "note": ""
+ },
+ {
+  "n": "K2 (Godwin-Austen)",
+  "h": 8611,
+  "lon": 76.513,
+  "lat": 35.882,
+  "g": "karakoram",
+  "note": "2nd highest on Earth \u2014 Karakoram"
+ },
+ {
+  "n": "Kailash",
+  "h": 6638,
+  "lon": 81.313,
+  "lat": 31.067,
+  "g": "karakoram",
+  "note": "Trans-Himalaya; near sources of Indus, Sutlej, Brahmaputra"
+ },
+ {
+  "n": "Anamudi",
+  "h": 2695,
+  "lon": 77.06,
+  "lat": 10.167,
+  "g": "peninsula",
+  "note": "Highest in Western Ghats & peninsular India"
+ },
+ {
+  "n": "Doddabetta",
+  "h": 2637,
+  "lon": 76.736,
+  "lat": 11.401,
+  "g": "peninsula",
+  "note": "Nilgiris"
+ },
+ {
+  "n": "Mahendragiri",
+  "h": 1501,
+  "lon": 84.357,
+  "lat": 18.974,
+  "g": "peninsula",
+  "note": "Eastern Ghats"
+ },
+ {
+  "n": "Guru Shikhar",
+  "h": 1722,
+  "lon": 72.778,
+  "lat": 24.657,
+  "g": "peninsula",
+  "note": "Aravalli \u2014 among Earth's oldest ranges"
+ },
+ {
+  "n": "Dhupgarh",
+  "h": 1352,
+  "lon": 78.371,
+  "lat": 22.45,
+  "g": "peninsula",
+  "note": "Satpura"
+ },
+ {
+  "n": "Kalsubai",
+  "h": 1646,
+  "lon": 73.71,
+  "lat": 19.601,
+  "g": "peninsula",
+  "note": "Sahyadri (Maharashtra)"
+ },
+ {
+  "n": "Saramati",
+  "h": 3826,
+  "lon": 95.04,
+  "lat": 25.73,
+  "g": "peninsula",
+  "note": "Purvanchal (Naga Hills)"
+ },
+ {
+  "n": "Pidurutalagala",
+  "h": 2524,
+  "lon": 80.774,
+  "lat": 7.001,
+  "g": "peninsula",
+  "note": "Highest in Sri Lanka"
+ }
+]

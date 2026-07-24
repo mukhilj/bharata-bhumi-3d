@@ -1,0 +1,608 @@
+/* ————————————————————————————————————————————————————————————
+   Bhārata Bhūmi — Physical features of the Indian subcontinent in 3D
+   Terrain: SRTM30_PLUS (Scripps/UCSD) 30-arc-second land + ocean elevation
+   Frame:   60–100°E, 5°S–40°N · 72 tiles of 5°×5° · int16 metres
+   ———————————————————————————————————————————————————————————— */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+
+/* ————— geographic frame constants ————— */
+const LON0 = 60, LON1 = 100, LAT0 = -5, LAT1 = 40;
+const COLS = 8, ROWS = 9, TILE = 5, TP = 600;      // tile grid, samples per side (601 incl. edge)
+const CLON = 80, CLAT = 17.5;                      // projection centre
+const KLON = Math.cos(20 * Math.PI / 180);         // E–W metre compression at mid-latitudes
+const M = 1 / 111320;                              // metres → world units (1 unit ≈ 1° ≈ 111 km)
+
+let EXAG = 12;                                     // vertical exaggeration (slider)
+const hpm = () => EXAG * M;                        // world-height per metre
+
+const toX = lon => (lon - CLON) * KLON;
+const toZ = lat => (CLAT - lat);                   // north = −Z
+
+/* ————— renderer / scene / camera ————— */
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1220);
+scene.fog = new THREE.Fog(0x0b1220, 55, 140);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 400);
+camera.position.set(0, 30, 34);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.inset = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+document.getElementById('labels').appendChild(labelRenderer.domElement);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minDistance = 0.15;
+controls.maxDistance = 90;
+controls.target.set(0, 0, 2);
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  lineMats.forEach(m => m.resolution.set(w, h));
+}
+addEventListener('resize', resize);
+
+/* ————— CPU elevation store + bilinear sampler ————— */
+const tileData = new Array(COLS * ROWS).fill(null);   // Int16Array(601*601), row 0 = tile's north edge
+
+function heightAt(lon, lat) {                          // metres (negative = sea floor)
+  if (lon < LON0 || lon > LON1 || lat < LAT0 || lat > LAT1) return null;
+  const c = Math.min(COLS - 1, Math.floor((lon - LON0) / TILE));
+  const r = Math.min(ROWS - 1, Math.floor((LAT1 - lat) / TILE));
+  const d = tileData[r * COLS + c];
+  if (!d) return 0;
+  const fx = (lon - (LON0 + c * TILE)) / TILE * TP;
+  const fy = (LAT1 - r * TILE - lat) / TILE * TP;
+  const x0 = Math.max(0, Math.min(TP - 1, Math.floor(fx)));
+  const y0 = Math.max(0, Math.min(TP - 1, Math.floor(fy)));
+  const tx = fx - x0, ty = fy - y0, W = TP + 1;
+  const a = d[y0 * W + x0],     b = d[y0 * W + x0 + 1];
+  const e = d[(y0 + 1) * W + x0], f = d[(y0 + 1) * W + x0 + 1];
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (e * (1 - tx) + f * tx) * ty;
+}
+
+/* ————— terrain shaders: per-pixel hypsometric tint + shading from the
+         full-resolution elevation texture, independent of mesh density ————— */
+const VERT = /* glsl */`
+uniform sampler2D uElev;
+uniform vec2  uOrigin;      // lon of west edge, lat of north edge
+uniform float uExag;
+attribute float aSkirt;
+varying vec2 vUV;
+varying vec2 vLL;
+void main(){
+  vec2 q = position.xy;                          // 0..1 across the tile
+  vUV = (q * 600.0 + 0.5) / 601.0;
+  float e = texture2D(uElev, vUV).r;
+  float lon = uOrigin.x + q.x * ${TILE.toFixed(1)};
+  float lat = uOrigin.y - q.y * ${TILE.toFixed(1)};
+  vLL = vec2(lon, lat);
+  float y = e * uExag / 111320.0 - aSkirt * 0.15;
+  vec3 p = vec3((lon - ${CLON.toFixed(1)}) * ${KLON.toFixed(6)}, y, (${CLAT.toFixed(1)} - lat));
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+}`;
+
+const FRAG = /* glsl */`
+precision highp float;
+uniform sampler2D uElev;
+uniform sampler2D uBasins;
+uniform float uExag;
+uniform float uBasinMix;
+uniform vec3  uSun;
+varying vec2 vUV;
+varying vec2 vLL;
+
+vec3 seg(float e, float a, float b, vec3 ca, vec3 cb){ return mix(ca, cb, clamp((e-a)/(b-a),0.,1.)); }
+vec3 ramp(float e){
+  // ocean
+  if (e < 0.0){
+    if (e < -4000.0) return seg(e,-6500.,-4000., vec3(.027,.149,.290), vec3(.067,.251,.420));
+    if (e < -2000.0) return seg(e,-4000.,-2000., vec3(.067,.251,.420), vec3(.161,.369,.588));
+    if (e <  -200.0) return seg(e,-2000., -200., vec3(.161,.369,.588), vec3(.369,.620,.796));
+    return               seg(e, -200.,     0., vec3(.369,.620,.796), vec3(.573,.773,.871));
+  }
+  // land — school-atlas hypsometric convention
+  if (e <  150.) return seg(e,    0.,  150., vec3(.239,.478,.247), vec3(.388,.631,.380));
+  if (e <  300.) return seg(e,  150.,  300., vec3(.388,.631,.380), vec3(.616,.757,.514));
+  if (e <  600.) return seg(e,  300.,  600., vec3(.616,.757,.514), vec3(.851,.820,.471));
+  if (e < 1000.) return seg(e,  600., 1000., vec3(.851,.820,.471), vec3(.910,.769,.435));
+  if (e < 1500.) return seg(e, 1000., 1500., vec3(.910,.769,.435), vec3(.851,.620,.337));
+  if (e < 2500.) return seg(e, 1500., 2500., vec3(.851,.620,.337), vec3(.690,.435,.259));
+  if (e < 3800.) return seg(e, 2500., 3800., vec3(.690,.435,.259), vec3(.541,.353,.235));
+  if (e < 5000.) return seg(e, 3800., 5000., vec3(.541,.353,.235), vec3(.659,.604,.549));
+  if (e < 5600.) return seg(e, 5000., 5600., vec3(.659,.604,.549), vec3(1.,1.,1.));
+  return vec3(1.);
+}
+
+void main(){
+  float e = texture2D(uElev, vUV).r;
+  float ts = 1.0/601.0;
+  float ex1 = texture2D(uElev, vUV + vec2(ts,0.)).r;
+  float ex0 = texture2D(uElev, vUV - vec2(ts,0.)).r;
+  float ey1 = texture2D(uElev, vUV + vec2(0.,ts)).r;
+  float ey0 = texture2D(uElev, vUV - vec2(0.,ts)).r;
+  float k = uExag / 111320.0;
+  float dx = 2.0 * ${(TILE / TP).toFixed(6)} * ${KLON.toFixed(6)};
+  float dz = 2.0 * ${(TILE / TP).toFixed(6)};
+  vec3 dPdx = vec3(dx, (ex1-ex0)*k, 0.0);
+  vec3 dPdz = vec3(0.0, (ey1-ey0)*k, dz);
+  vec3 n = normalize(cross(dPdz, dPdx));
+  float diff = max(dot(n, normalize(uSun)), 0.0);
+  vec3 col = ramp(e) * (0.55 + 0.55 * diff);
+  // river-basin overlay, sampled by global lon/lat
+  if (uBasinMix > 0.001){
+    vec2 buv = vec2((vLL.x - 60.0) / 40.0, 1.0 - (40.0 - vLL.y) / 45.0);
+    vec4 b = texture2D(uBasins, buv);
+    col = mix(col, b.rgb * (0.6 + 0.5 * diff), b.a * uBasinMix);
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+/* shared tile grid geometry with a perimeter skirt (hides LOD seams) */
+function makeGrid(n) {
+  const verts = [], skirt = [], idx = [];
+  const at = (i, j) => j * (n + 1) + i;
+  for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) { verts.push(i / n, j / n, 0); skirt.push(0); }
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const a = at(i, j), b = at(i + 1, j), c = at(i, j + 1), d = at(i + 1, j + 1);
+    idx.push(a, c, b, b, c, d);
+  }
+  let base = (n + 1) * (n + 1);
+  const edges = [
+    Array.from({ length: n + 1 }, (_, i) => at(i, 0)),
+    Array.from({ length: n + 1 }, (_, i) => at(i, n)),
+    Array.from({ length: n + 1 }, (_, j) => at(0, j)),
+    Array.from({ length: n + 1 }, (_, j) => at(n, j)),
+  ];
+  for (const e of edges) {
+    for (const v of e) { verts.push(verts[v * 3], verts[v * 3 + 1], 0); skirt.push(1); }
+    for (let k = 0; k < n; k++) {
+      const a = e[k], b = e[k + 1], a2 = base + k, b2 = base + k + 1;
+      idx.push(a, b, a2, b, b2, a2, a, a2, b, b, a2, b2);   // both windings — always visible
+    }
+    base += n + 1;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  g.setAttribute('aSkirt', new THREE.Float32BufferAttribute(skirt, 1));
+  g.setIndex(idx);
+  return g;
+}
+const GEO_HI = makeGrid(240), GEO_MID = makeGrid(96), GEO_LO = makeGrid(30);
+
+const basinTex = new THREE.TextureLoader().load('data/basins.png');
+basinTex.colorSpace = THREE.NoColorSpace;
+const SUN = new THREE.Vector3(-0.55, 0.72, -0.55);   // from the north-west, as on printed maps
+const tileMats = [];
+
+function buildTile(c, r, int16) {
+  const f = new Float32Array((TP + 1) * (TP + 1));
+  for (let i = 0; i < f.length; i++) f[i] = int16[i];
+  const tex = new THREE.DataTexture(f, TP + 1, TP + 1, THREE.RedFormat, THREE.FloatType);
+  tex.needsUpdate = true;
+  const canLinear = renderer.extensions.get('OES_texture_float_linear');
+  tex.magFilter = canLinear ? THREE.LinearFilter : THREE.NearestFilter;
+  tex.minFilter = canLinear ? THREE.LinearFilter : THREE.NearestFilter;
+  tex.generateMipmaps = false;
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: VERT, fragmentShader: FRAG,
+    uniforms: {
+      uElev: { value: tex },
+      uBasins: { value: basinTex },
+      uOrigin: { value: new THREE.Vector2(LON0 + c * TILE, LAT1 - r * TILE) },
+      uExag: { value: EXAG },
+      uBasinMix: { value: 0 },
+      uSun: { value: SUN },
+    },
+  });
+  tileMats.push(mat);
+
+  const lod = new THREE.LOD();
+  for (const [geo, dist] of [[GEO_HI, 0], [GEO_MID, 7.5], [GEO_LO, 19]]) {
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false;                       // GPU displacement breaks CPU bounds
+    lod.addLevel(mesh, dist);
+  }
+  // place LOD anchor at tile centre so distance switching is honest
+  lod.position.set(toX(LON0 + c * TILE + TILE / 2), 0, toZ(LAT1 - r * TILE - TILE / 2));
+  lod.children.forEach(m => m.position.set(-lod.position.x, 0, -lod.position.z));
+  scene.add(lod);
+}
+
+/* translucent sea surface at 0 m */
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry((LON1 - LON0) * KLON, LAT1 - LAT0),
+  new THREE.MeshBasicMaterial({ color: 0x3a7fb8, transparent: true, opacity: 0.22, depthWrite: false })
+);
+water.rotation.x = -Math.PI / 2;
+water.position.set(toX((LON0 + LON1) / 2), 0.001, toZ((LAT0 + LAT1) / 2));
+scene.add(water);
+
+/* ————— draped line + label helpers ————— */
+const lineMats = [];
+const draped = [];                                    // registry for re-draping on exaggeration change
+
+function lineMaterial(color, width, dashed = false) {
+  const m = new LineMaterial({ color, linewidth: width, dashed,
+    dashSize: 0.28, gapSize: 0.14, alphaToCoverage: false });
+  m.resolution.set(innerWidth, innerHeight);
+  lineMats.push(m);
+  return m;
+}
+
+function drapePositions(lonlat, lift) {
+  const pos = [];
+  for (const [lon, lat] of lonlat) {
+    const e = Math.max(heightAt(lon, lat) ?? 0, 0);
+    pos.push(toX(lon), e * hpm() + lift * hpm() * 8 + 0.004, toZ(lat));
+  }
+  return pos;
+}
+
+function drapedLine(lonlat, mat, lift = 4) {          // lift ≈ metres ×8×exag visual clearance
+  const pts = [];
+  for (let i = 0; i < lonlat.length; i++) {           // resample long segments for faithful draping
+    pts.push(lonlat[i]);
+    if (i < lonlat.length - 1) {
+      const [x0, y0] = lonlat[i], [x1, y1] = lonlat[i + 1];
+      const d = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      const n = Math.floor(d / 0.05);
+      for (let k = 1; k <= n; k++) pts.push([x0 + (x1 - x0) * k / (n + 1), y0 + (y1 - y0) * k / (n + 1)]);
+    }
+  }
+  const inFrame = pts.filter(p => p[0] >= LON0 && p[0] <= LON1 && p[1] >= LAT0 && p[1] <= LAT1);
+  if (inFrame.length < 2) return null;
+  const g = new LineGeometry();
+  g.setPositions(drapePositions(inFrame, lift));
+  const line = new Line2(g, mat);
+  line.computeLineDistances();
+  draped.push({ line, lonlat: inFrame, lift });
+  return line;
+}
+
+function redrape() {
+  for (const d of draped) {
+    d.line.geometry.setPositions(drapePositions(d.lonlat, d.lift));
+    d.line.computeLineDistances();
+  }
+  for (const p of peakPins) {
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    p.obj.position.y = e * hpm();
+  }
+  for (const l of surfaceLabels) {
+    const e = Math.max(heightAt(l.lon, l.lat) ?? 0, 0);
+    l.obj.position.y = e * hpm() + 0.02;
+  }
+  water.position.y = 0.001;
+}
+
+function makeLabel(html, cls, lon, lat, yWorld) {
+  const div = document.createElement('div');
+  div.className = 'lbl ' + cls;
+  div.innerHTML = html;
+  const o = new CSS2DObject(div);
+  o.position.set(toX(lon), yWorld, toZ(lat));
+  return o;
+}
+
+const surfaceLabels = [];                             // labels that sit on the terrain
+function surfaceLabel(html, cls, lon, lat) {
+  const e = Math.max(heightAt(lon, lat) ?? 0, 0);
+  const o = makeLabel(html, cls, lon, lat, e * hpm() + 0.02);
+  surfaceLabels.push({ obj: o, lon, lat });
+  return o;
+}
+
+/* ————— layer groups ————— */
+const G = {
+  peaks: new THREE.Group(), him3: new THREE.Group(), ranges: new THREE.Group(),
+  rivers: new THREE.Group(), physio: new THREE.Group(), seas: new THREE.Group(),
+  basins: new THREE.Group(),
+};
+Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
+
+const peakPins = [];
+const fmtIN = n => n.toLocaleString('en-IN');
+
+async function buildOverlays() {
+  const [peaks, ranges, rivers, lakes, labels, trap, basins] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins']
+      .map(n => fetch('data/' + n + '.json').then(r => r.json()))
+  );
+
+  /* peaks — pin + name + official spot height */
+  const pinGeo = new THREE.ConeGeometry(0.018, 0.09, 6);
+  for (const p of peaks) {
+    const major = ['Mount Everest', 'K2 (Godwin-Austen)', 'Kangchenjunga', 'Nanda Devi', 'Anamudi', 'Nanga Parbat'].includes(p.n);
+    const colr = p.g === 'karakoram' ? 0xb39ddb : p.g === 'peninsula' ? 0x80cbc4 : 0xffffff;
+    const pin = new THREE.Mesh(pinGeo, new THREE.MeshBasicMaterial({ color: colr }));
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    pin.position.set(toX(p.lon), e * hpm(), toZ(p.lat));
+    pin.rotation.x = Math.PI;
+    const note = p.note ? `<span class="note">${p.note}</span>` : '';
+    const lbl = makeLabel(`▲ ${p.n} <span class="h">${fmtIN(p.h)} m</span>${note}`, 'peak', p.lon, p.lat, 0);
+    lbl.position.set(0, 0.05, 0);      // relative to the pin, not the world
+    lbl.center.set(0.5, 1.35);
+    pin.add(lbl);
+    pin.userData.major = major;
+    peakPins.push({ obj: pin, lon: p.lon, lat: p.lat });
+    G.peaks.add(pin);
+  }
+
+  /* the three Himalayan ranges + other ranges — crest lines with labels */
+  for (const rg of ranges) {
+    const grp = rg.g === 'him3' ? G.him3 : G.ranges;
+    const mat = lineMaterial(rg.c, rg.g === 'him3' ? 4.5 : 3.2, rg.g === 'him3');
+    const ln = drapedLine(rg.pts, mat, 12);
+    if (ln) grp.add(ln);
+    const mid = rg.pts[Math.floor(rg.pts.length / 2)];
+    const l = surfaceLabel(rg.n, 'range', mid[0], mid[1]);
+    l.element.style.color = rg.c;
+    grp.add(l);
+  }
+
+  /* rivers + display-name corrections (Indian usage) */
+  const rename = { 'Ganges': 'Ganga', 'Cauvery': 'Kaveri', 'Penner': 'Pennar',
+    'Mahäna Nadï': 'Mahanadi', 'Godävari': 'Godavari', 'Ghäghara': 'Ghaghara',
+    'Sapt': 'Kosi', 'Dihang': 'Dihang (Brahmaputra)', 'Kolidam': 'Kollidam', 'Tista': 'Teesta' };
+  const labelThese = new Set(['Indus', 'Jhelum', 'Chenab', 'Ravi', 'Beas', 'Sutlej', 'Ganga', 'Yamuna',
+    'Ghaghara', 'Gandak', 'Kosi', 'Son', 'Chambal', 'Betwa', 'Brahmaputra', 'Teesta', 'Narmada', 'Tapi',
+    'Mahanadi', 'Godavari', 'Krishna', 'Bhima', 'Tungabhadra', 'Kaveri', 'Pennar', 'Mahi', 'Luni',
+    'Indravati', 'Wainganga', 'Brahmani', 'Subarnarekha', 'Dihang (Brahmaputra)', 'Irrawaddy', 'Salween', 'Mahaweli']);
+  const rvMat = lineMaterial(0x41b6f0, 2.4);
+  const rvMatMajor = lineMaterial(0x64ccff, 3.2);
+  const seen = new Set();
+  for (const rv of rivers) {
+    const name = rename[rv.name] || rv.name;
+    const major = ['Indus', 'Ganga', 'Brahmaputra', 'Godavari', 'Krishna', 'Narmada', 'Kaveri', 'Mahanadi', 'Tapi'].includes(name);
+    let longest = null;
+    for (const line of rv.lines) {
+      const ln = drapedLine(line, major ? rvMatMajor : rvMat, 3);
+      if (ln) G.rivers.add(ln);
+      if (!longest || line.length > longest.length) longest = line;
+    }
+    if (name && labelThese.has(name) && !seen.has(name) && longest) {
+      seen.add(name);
+      const mid = longest[Math.floor(longest.length / 2)];
+      if (mid[0] > LON0 && mid[0] < LON1 && mid[1] > LAT0 && mid[1] < LAT1)
+        G.rivers.add(surfaceLabel(name, 'river', mid[0], mid[1]));
+    }
+  }
+
+  /* lakes — filled at surface height */
+  for (const lk of lakes) {
+    for (const ring of lk.rings) {
+      if (ring.length < 4) continue;
+      const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x, y)));
+      const g = new THREE.ShapeGeometry(shape);
+      const pos = g.attributes.position;
+      const base = [];
+      for (let i = 0; i < pos.count; i++) {
+        const lon = pos.getX(i), lat = pos.getY(i);
+        base.push([lon, lat]);
+        const e = Math.max(heightAt(lon, lat) ?? 0, 0);
+        pos.setXYZ(i, toX(lon), e * hpm() + 0.006, toZ(lat));
+      }
+      const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x2f8fce, side: THREE.DoubleSide }));
+      mesh.userData.base = base;
+      G.rivers.add(mesh);
+      draped.push({ line: { geometry: g, computeLineDistances(){} }, lonlat: base, lift: 0,
+        // lake meshes re-drape through the same registry via a custom setPositions shim
+      });
+      draped[draped.length - 1].line.geometry.setPositions = arr => {
+        for (let i = 0; i < pos.count; i++) pos.setXYZ(i, arr[i * 3], arr[i * 3 + 1] + 0.002, arr[i * 3 + 2]);
+        pos.needsUpdate = true;
+      };
+    }
+  }
+
+  /* region + sea labels */
+  for (const lb of labels) {
+    if (lb.k === 'sea') G.seas.add(surfaceLabel(lb.n, 'sea', lb.lon, lb.lat));
+    else G.physio.add(surfaceLabel(lb.n, 'physio', lb.lon, lb.lat));
+  }
+
+  /* Deccan Traps outline */
+  const trapLn = drapedLine(trap.outline, lineMaterial(0xff7043, 3.4, true), 10);
+  if (trapLn) G.physio.add(trapLn);
+  G.physio.add(surfaceLabel('DECCAN TRAPS · lava plateau', 'trap', 76.2, 19.6));
+
+  /* basin legend + labels */
+  const ul = document.getElementById('basin-list');
+  for (const b of basins) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="dot" style="background:${b.color}"></span>${b.name}<span class="a">${b.area_lakh_km2.toFixed(2)}</span>`;
+    ul.appendChild(li);
+    if (b.lon) G.basins.add(surfaceLabel(b.name + ' basin', 'basin', b.lon, b.lat));
+  }
+}
+
+/* ————— peak-label decluttering by distance ————— */
+function updatePeakVisibility() {
+  if (!G.peaks.visible) return;
+  for (const p of peakPins) {
+    const d = camera.position.distanceTo(p.obj.position);
+    p.obj.children[0].visible = p.obj.userData.major || d < 13;
+  }
+}
+
+/* ————— elevation probe: touch the land to read its height ————— */
+const probeEl = document.getElementById('probe');
+const probeMark = new THREE.Mesh(new THREE.RingGeometry(0.02, 0.03, 24),
+  new THREE.MeshBasicMaterial({ color: 0xe6b34d, side: THREE.DoubleSide }));
+probeMark.rotation.x = -Math.PI / 2;
+probeMark.visible = false;
+scene.add(probeMark);
+
+function probe(clientX, clientY) {
+  const ndc = new THREE.Vector2((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1);
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(ndc, camera);
+  const o = ray.ray.origin, d = ray.ray.direction;
+  let tPrev = 0, hit = null;
+  for (let t = 0.02; t < 160; t += Math.max(0.01, t * 0.012)) {
+    const p = o.clone().addScaledVector(d, t);
+    const lon = p.x / KLON + CLON, lat = CLAT - p.z;
+    const e = heightAt(lon, lat);
+    if (e === null) { tPrev = t; continue; }
+    if (p.y <= e * hpm()) {                            // crossed the surface — bisect
+      let lo = tPrev, hi = t;
+      for (let i = 0; i < 24; i++) {
+        const m = (lo + hi) / 2, q = o.clone().addScaledVector(d, m);
+        const el = heightAt(q.x / KLON + CLON, CLAT - q.z);
+        (el !== null && q.y <= el * hpm()) ? hi = m : lo = m;
+      }
+      const q = o.clone().addScaledVector(d, hi);
+      hit = { p: q, lon: q.x / KLON + CLON, lat: CLAT - q.z };
+      break;
+    }
+    tPrev = t;
+  }
+  if (!hit) { probeEl.hidden = true; probeMark.visible = false; return; }
+  const e = Math.round(heightAt(hit.lon, hit.lat));
+  const latS = Math.abs(hit.lat).toFixed(1) + '°' + (hit.lat >= 0 ? 'N' : 'S');
+  const lonS = hit.lon.toFixed(1) + '°E';
+  probeEl.innerHTML = e >= 0
+    ? `<span class="big">${fmtIN(e)} m</span> above sea level<br><span class="pos">${latS}, ${lonS}</span>`
+    : `sea floor, <span class="big">${fmtIN(-e)} m</span> deep<br><span class="pos">${latS}, ${lonS}</span>`;
+  probeEl.hidden = false;
+  probeEl.style.left = Math.min(clientX + 14, innerWidth - 190) + 'px';
+  probeEl.style.top = Math.max(clientY - 54, 8) + 'px';
+  probeMark.position.copy(hit.p).y += 0.005;
+  probeMark.visible = true;
+}
+let downAt = null;
+canvas.addEventListener('pointerdown', e => downAt = [e.clientX, e.clientY, Date.now()]);
+canvas.addEventListener('pointerup', e => {
+  if (!downAt) return;
+  const [x, y, t] = downAt;
+  if (Math.hypot(e.clientX - x, e.clientY - y) < 6 && Date.now() - t < 400) probe(e.clientX, e.clientY);
+  downAt = null;
+});
+
+/* ————— UI wiring ————— */
+const ly = id => document.getElementById(id);
+ly('ly-peaks').onchange = e => G.peaks.visible = e.target.checked;
+ly('ly-him3').onchange = e => G.him3.visible = e.target.checked;
+ly('ly-ranges').onchange = e => G.ranges.visible = e.target.checked;
+ly('ly-rivers').onchange = e => G.rivers.visible = e.target.checked;
+ly('ly-physio').onchange = e => G.physio.visible = e.target.checked;
+ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
+ly('ly-basins').onchange = e => {
+  const on = e.target.checked;
+  G.basins.visible = on;
+  document.getElementById('basin-legend').hidden = !on;
+  tileMats.forEach(m => m.uniforms.uBasinMix.value = on ? 0.85 : 0);
+};
+
+const exagIn = document.getElementById('exag');
+exagIn.addEventListener('input', () => {
+  EXAG = +exagIn.value;
+  document.getElementById('exag-out').textContent = EXAG + '×';
+  tileMats.forEach(m => m.uniforms.uExag.value = EXAG);
+});
+exagIn.addEventListener('change', redrape);
+
+/* camera journeys */
+const VIEWS = {
+  all:    { pos: [0, 30, 34],                target: [0, 0, 2] },
+  him:    { pos: [toX(81), 6.5, toZ(21.5)],  target: [toX(82), 0.35, toZ(29.5)] },
+  plains: { pos: [toX(80), 5.2, toZ(17.5)],  target: [toX(80), 0.05, toZ(26)] },
+  deccan: { pos: [toX(76.6), 5.6, toZ(6.5)], target: [toX(77.5), 0.06, toZ(16)] },
+  coast:  { pos: [toX(80), 9.5, toZ(-1)],    target: [toX(79), 0, toZ(12)] },
+};
+let fly = null;
+document.querySelectorAll('.presets button').forEach(b => b.onclick = () => {
+  const v = VIEWS[b.dataset.view];
+  fly = { t: 0, p0: camera.position.clone(), p1: new THREE.Vector3(...v.pos),
+          c0: controls.target.clone(), c1: new THREE.Vector3(...v.target) };
+});
+
+/* hypsometric legend */
+(function drawRamp() {
+  const cv = document.getElementById('ramp'), ctx = cv.getContext('2d');
+  const stops = [[-6500, '#072649'], [-2000, '#295e96'], [0, '#92c5de'], [0.001, '#3d7a3f'],
+    [300, '#9dc183'], [600, '#d9d178'], [1500, '#d99e56'], [2500, '#b06f42'],
+    [3800, '#8a5a3c'], [5000, '#a89a8c'], [5600, '#ffffff'], [8800, '#ffffff']];
+  const lo = -6500, hi = 8800, X = v => (v - lo) / (hi - lo) * cv.width;
+  const g = ctx.createLinearGradient(0, 0, cv.width, 0);
+  for (const [v, c] of stops) g.addColorStop((v - lo) / (hi - lo), c);
+  ctx.fillStyle = g; ctx.fillRect(0, 6, cv.width, 18);
+  ctx.fillStyle = '#93a3b8'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+  for (const v of [-4000, 0, 2000, 5000, 8000]) {
+    ctx.fillRect(X(v), 24, 1, 4);
+    ctx.fillText(v === 0 ? '0 m' : (v / 1000) + ' km', X(v), 40);
+  }
+})();
+
+/* ————— tile loading ————— */
+async function loadTiles() {
+  const bar = document.getElementById('loadbar'), msg = document.getElementById('loadmsg');
+  let done = 0;
+  const jobs = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) jobs.push([c, r]);
+  const CONC = 8;
+  await Promise.all(Array.from({ length: CONC }, async (_, k) => {
+    for (let i = k; i < jobs.length; i += CONC) {
+      const [c, r] = jobs[i];
+      const buf = await fetch(`data/tiles/t${c}_${r}.bin`).then(x => {
+        if (!x.ok) throw new Error('tile ' + x.status);
+        return x.arrayBuffer();
+      });
+      const d = new Int16Array(buf);
+      tileData[r * COLS + c] = d;
+      buildTile(c, r, d);
+      bar.style.width = (++done / jobs.length * 100) + '%';
+      msg.textContent = `elevation tile ${done} / ${jobs.length}`;
+    }
+  }));
+}
+
+/* ————— boot ————— */
+(async () => {
+  resize();
+  try {
+    await loadTiles();
+    await buildOverlays();
+  } catch (err) {
+    document.getElementById('loadmsg').textContent =
+      'Could not load data. Start the app with:  python -m http.server  (see README)';
+    console.error(err);
+    return;
+  }
+  document.getElementById('loading').classList.add('done');
+})();
+
+const needle = document.getElementById('needle');
+renderer.setAnimationLoop(() => {
+  if (fly) {
+    fly.t = Math.min(1, fly.t + 0.016);
+    const s = fly.t * fly.t * (3 - 2 * fly.t);
+    camera.position.lerpVectors(fly.p0, fly.p1, s);
+    controls.target.lerpVectors(fly.c0, fly.c1, s);
+    if (fly.t >= 1) fly = null;
+  }
+  controls.update();
+  updatePeakVisibility();
+  needle.setAttribute('transform',
+    `rotate(${-controls.getAzimuthalAngle() * 180 / Math.PI} 20 20)`);
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});

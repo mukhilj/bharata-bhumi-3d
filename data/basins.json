@@ -1,0 +1,146 @@
+[
+ {
+  "id": 1,
+  "name": "Indus",
+  "area_lakh_km2": 10.52,
+  "official_lakh_km2": 11.2,
+  "color": "#4285f4",
+  "lon": 75.35,
+  "lat": 32.39
+ },
+ {
+  "id": 2,
+  "name": "Ganga",
+  "area_lakh_km2": 9.93,
+  "official_lakh_km2": 10.9,
+  "color": "#34a853",
+  "lon": 81.13,
+  "lat": 26.77
+ },
+ {
+  "id": 3,
+  "name": "Brahmaputra",
+  "area_lakh_km2": 4.69,
+  "official_lakh_km2": 5.8,
+  "color": "#ff6d00",
+  "lon": 92.27,
+  "lat": 28.29
+ },
+ {
+  "id": 4,
+  "name": "Barak-Meghna",
+  "area_lakh_km2": 0.35,
+  "official_lakh_km2": 0.42,
+  "color": "#ab47bc",
+  "lon": 93.23,
+  "lat": 24.52
+ },
+ {
+  "id": 5,
+  "name": "Mahanadi",
+  "area_lakh_km2": 1.36,
+  "official_lakh_km2": 1.42,
+  "color": "#00acc1",
+  "lon": 82.87,
+  "lat": 21.3
+ },
+ {
+  "id": 6,
+  "name": "Brahmani-Baitarani",
+  "area_lakh_km2": 0.53,
+  "official_lakh_km2": 0.52,
+  "color": "#ffc107",
+  "lon": 85.3,
+  "lat": 21.85
+ },
+ {
+  "id": 7,
+  "name": "Subarnarekha",
+  "area_lakh_km2": 0.19,
+  "official_lakh_km2": 0.19,
+  "color": "#e91e63",
+  "lon": 86.04,
+  "lat": 22.72
+ },
+ {
+  "id": 8,
+  "name": "Godavari",
+  "area_lakh_km2": 3.08,
+  "official_lakh_km2": 3.13,
+  "color": "#7cb342",
+  "lon": 78.86,
+  "lat": 19.54
+ },
+ {
+  "id": 9,
+  "name": "Krishna",
+  "area_lakh_km2": 2.52,
+  "official_lakh_km2": 2.59,
+  "color": "#5e35b1",
+  "lon": 76.52,
+  "lat": 16.5
+ },
+ {
+  "id": 10,
+  "name": "Pennar",
+  "area_lakh_km2": 0.54,
+  "official_lakh_km2": 0.55,
+  "color": "#00897b",
+  "lon": 78.3,
+  "lat": 14.45
+ },
+ {
+  "id": 11,
+  "name": "Kaveri",
+  "area_lakh_km2": 0.71,
+  "official_lakh_km2": 0.81,
+  "color": "#f4511e",
+  "lon": 77.23,
+  "lat": 11.84
+ },
+ {
+  "id": 12,
+  "name": "Narmada",
+  "area_lakh_km2": 0.97,
+  "official_lakh_km2": 0.99,
+  "color": "#039be5",
+  "lon": 77.46,
+  "lat": 22.45
+ },
+ {
+  "id": 13,
+  "name": "Tapi",
+  "area_lakh_km2": 0.65,
+  "official_lakh_km2": 0.65,
+  "color": "#d84315",
+  "lon": 75.77,
+  "lat": 21.05
+ },
+ {
+  "id": 14,
+  "name": "Mahi",
+  "area_lakh_km2": 0.32,
+  "official_lakh_km2": 0.35,
+  "color": "#8e24aa",
+  "lon": 74.24,
+  "lat": 23.47
+ },
+ {
+  "id": 15,
+  "name": "Sabarmati",
+  "area_lakh_km2": 0.3,
+  "official_lakh_km2": 0.22,
+  "color": "#43a047",
+  "lon": 72.68,
+  "lat": 23.29
+ },
+ {
+  "id": 16,
+  "name": "Luni",
+  "area_lakh_km2": 0.49,
+  "official_lakh_km2": 0.35,
+  "color": "#fb8c00",
+  "lon": 73.09,
+  "lat": 26.11
+ }
+]

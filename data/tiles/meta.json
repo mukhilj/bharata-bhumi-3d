@@ -1,0 +1,1 @@
+{"lon0": 60, "lat0": 40, "dLon": 5, "dLat": 5, "cols": 8, "rows": 9, "tilePx": 600, "note": "tile t{c}_{r}: lon 60+5c..65+5c, lat 40-5r..35-5r (row-major from N), 601x601 LE int16 metres"}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bhārata Bhūmi — Physical Features of the Indian Subcontinent in 3D</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+  <div id="labels"></div>
+
+  <!-- Loading screen -->
+  <div id="loading">
+    <div class="load-card">
+      <h1>Bhārata Bhūmi</h1>
+      <p>Laying out the land and the sea&hellip;</p>
+      <div class="bar"><div id="loadbar"></div></div>
+      <p id="loadmsg" class="dim">fetching elevation tiles</p>
+    </div>
+  </div>
+
+  <!-- Control panel: styled after the guide's transparency overlay maps -->
+  <aside id="panel">
+    <header>
+      <h1>Bhārata Bhūmi</h1>
+      <p class="sub">Physical features of the Indian subcontinent<br>real elevation data · 1 km resolution</p>
+    </header>
+
+    <section class="grp">
+      <h2>Overlays <span class="hint">— lift one page at a time</span></h2>
+      <label class="layer"><input type="checkbox" id="ly-peaks"><span class="sw sw-peaks"></span>Peaks &amp; their heights</label>
+      <label class="layer"><input type="checkbox" id="ly-him3"><span class="sw sw-him3"></span>Three ranges of the Himalaya</label>
+      <label class="layer"><input type="checkbox" id="ly-ranges"><span class="sw sw-ranges"></span>Peninsular &amp; other ranges</label>
+      <label class="layer"><input type="checkbox" id="ly-rivers"><span class="sw sw-rivers"></span>Rivers &amp; lakes</label>
+      <label class="layer"><input type="checkbox" id="ly-basins"><span class="sw sw-basins"></span>River basins</label>
+      <label class="layer"><input type="checkbox" id="ly-physio"><span class="sw sw-physio"></span>Plateaus, plains, coasts &amp; islands</label>
+      <label class="layer"><input type="checkbox" id="ly-seas"><span class="sw sw-seas"></span>Seas &amp; oceans</label>
+    </section>
+
+    <section class="grp" id="basin-legend" hidden>
+      <h2>River basins <span class="hint">— area in lakh km²</span></h2>
+      <ul id="basin-list"></ul>
+    </section>
+
+    <section class="grp">
+      <h2>Relief</h2>
+      <div class="row">
+        <span class="dim">Vertical exaggeration</span>
+        <output id="exag-out">12×</output>
+      </div>
+      <input type="range" id="exag" min="1" max="25" step="1" value="12">
+      <canvas id="ramp" width="240" height="46"></canvas>
+    </section>
+
+    <section class="grp">
+      <h2>Journeys</h2>
+      <div class="presets">
+        <button data-view="all">Whole subcontinent</button>
+        <button data-view="him">Himalaya &amp; Karakoram</button>
+        <button data-view="plains">Northern Plains</button>
+        <button data-view="deccan">Deccan &amp; the Ghats</button>
+        <button data-view="coast">Coasts &amp; islands</button>
+      </div>
+    </section>
+
+    <footer>
+      <p>Touch the land to read its height.<br>Drag to turn · scroll to come closer.</p>
+    </footer>
+  </aside>
+
+  <div id="probe" hidden></div>
+  <div id="compass"><svg viewBox="0 0 40 40"><g id="needle"><polygon points="20,4 24,22 20,18 16,22" fill="#e05a4e"/><polygon points="20,36 24,22 20,26 16,22" fill="#cfd6df"/></g><text x="20" y="13" text-anchor="middle" font-size="7" fill="#eef2f7">N</text></svg></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
