@@ -583,6 +583,19 @@ function tiltStep(dir) {                            // dir: +1 up (toward horizo
 }
 bindHold('tilt-up', tiltState, 'up'); bindHold('tilt-down', tiltState, 'down');
 
+/* turn buttons: spin the view sideways around the target (azimuth), same
+   feel as the right-drag rotate but discoverable without a mouse/trackpad */
+const rotState = { left: false, right: false };
+
+function rotateStep(dir) {                           // dir: +1 turn right (clockwise), -1 turn left
+  _tiltOffset.copy(camera.position).sub(controls.target);
+  _tiltSph.setFromVector3(_tiltOffset);
+  _tiltSph.theta -= dir * 0.018;
+  _tiltOffset.setFromSpherical(_tiltSph);
+  camera.position.copy(controls.target).add(_tiltOffset);
+}
+bindHold('rot-left', rotState, 'left'); bindHold('rot-right', rotState, 'right');
+
 /* also let arrow keys pan — handy once a mouse/trackpad is set aside for a touch display */
 addEventListener('keydown', e => {
   const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
@@ -679,6 +692,10 @@ renderer.setAnimationLoop(() => {
   if (tiltState.up || tiltState.down) {
     if (tiltState.up) tiltStep(1);
     if (tiltState.down) tiltStep(-1);
+  }
+  if (rotState.left || rotState.right) {
+    if (rotState.left) rotateStep(-1);
+    if (rotState.right) rotateStep(1);
   }
   if (northSpin) {
     northSpin.t = Math.min(1, northSpin.t + 0.045);
