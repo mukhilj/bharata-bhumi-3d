@@ -557,17 +557,31 @@ function panStep(dx, dz) {                          // dx: +right/-left, dz: +aw
   controls.target.add(_panOffset);
 }
 
-function bindPad(id, key) {
+function bindHold(id, state, key) {
   const el = document.getElementById(id);
-  const start = ev => { ev.preventDefault(); panState[key] = true; el.classList.add('held'); };
-  const stop  = ()  => { panState[key] = false; el.classList.remove('held'); };
+  const start = ev => { ev.preventDefault(); state[key] = true; el.classList.add('held'); };
+  const stop  = ()  => { state[key] = false; el.classList.remove('held'); };
   el.addEventListener('pointerdown', start);
   el.addEventListener('pointerup', stop);
   el.addEventListener('pointerleave', stop);
   el.addEventListener('pointercancel', stop);
 }
-bindPad('pad-up', 'up'); bindPad('pad-down', 'down');
-bindPad('pad-left', 'left'); bindPad('pad-right', 'right');
+bindHold('pad-up', panState, 'up'); bindHold('pad-down', panState, 'down');
+bindHold('pad-left', panState, 'left'); bindHold('pad-right', panState, 'right');
+
+/* ————— tilt buttons: pitch the camera around the target — up toward the
+         horizon so relief stands up, down toward a flat top-down view ————— */
+const tiltState = { up: false, down: false };
+const _tiltOffset = new THREE.Vector3(), _tiltSph = new THREE.Spherical();
+
+function tiltStep(dir) {                            // dir: +1 up (toward horizon), -1 down (toward top-down)
+  _tiltOffset.copy(camera.position).sub(controls.target);
+  _tiltSph.setFromVector3(_tiltOffset);
+  _tiltSph.phi = THREE.MathUtils.clamp(_tiltSph.phi + dir * 0.018, controls.minPolarAngle, controls.maxPolarAngle);
+  _tiltOffset.setFromSpherical(_tiltSph);
+  camera.position.copy(controls.target).add(_tiltOffset);
+}
+bindHold('tilt-up', tiltState, 'up'); bindHold('tilt-down', tiltState, 'down');
 
 /* also let arrow keys pan — handy once a mouse/trackpad is set aside for a touch display */
 addEventListener('keydown', e => {
@@ -661,6 +675,10 @@ renderer.setAnimationLoop(() => {
     if (panState.up) dz += 1;
     if (panState.down) dz -= 1;
     panStep(dx, dz);
+  }
+  if (tiltState.up || tiltState.down) {
+    if (tiltState.up) tiltStep(1);
+    if (tiltState.down) tiltStep(-1);
   }
   if (northSpin) {
     northSpin.t = Math.min(1, northSpin.t + 0.045);
