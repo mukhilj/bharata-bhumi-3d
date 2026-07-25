@@ -1,0 +1,88 @@
+[
+ {"n": "Pune",         "s": "Maharashtra",    "lon": 73.8567, "lat": 18.5204},
+ {"n": "Nagpur",       "s": "Maharashtra",    "lon": 79.0882, "lat": 21.1458},
+ {"n": "Nashik",       "s": "Maharashtra",    "lon": 73.7898, "lat": 19.9975},
+ {"n": "Chhatrapati Sambhajinagar", "s": "Maharashtra", "lon": 75.3433, "lat": 19.8762},
+
+ {"n": "Kanpur",       "s": "Uttar Pradesh",  "lon": 80.3319, "lat": 26.4499},
+ {"n": "Varanasi",     "s": "Uttar Pradesh",  "lon": 83.0000, "lat": 25.3176},
+ {"n": "Agra",         "s": "Uttar Pradesh",  "lon": 78.0081, "lat": 27.1767},
+ {"n": "Prayagraj",    "s": "Uttar Pradesh",  "lon": 81.8463, "lat": 25.4358},
+ {"n": "Meerut",       "s": "Uttar Pradesh",  "lon": 77.7064, "lat": 28.9845},
+
+ {"n": "Coimbatore",   "s": "Tamil Nadu",     "lon": 76.9558, "lat": 11.0168},
+ {"n": "Madurai",      "s": "Tamil Nadu",     "lon": 78.1198, "lat": 9.9252},
+ {"n": "Tiruchirapalli", "s": "Tamil Nadu",   "lon": 78.7047, "lat": 10.7905},
+ {"n": "Salem",        "s": "Tamil Nadu",     "lon": 78.1460, "lat": 11.6643},
+
+ {"n": "Mysuru",       "s": "Karnataka",      "lon": 76.6394, "lat": 12.2958},
+ {"n": "Hubballi",     "s": "Karnataka",      "lon": 75.1240, "lat": 15.3647},
+ {"n": "Mangaluru",    "s": "Karnataka",      "lon": 74.8560, "lat": 12.9141},
+ {"n": "Belagavi",     "s": "Karnataka",      "lon": 74.4977, "lat": 15.8497},
+
+ {"n": "Ahmedabad",    "s": "Gujarat",        "lon": 72.5714, "lat": 23.0225},
+ {"n": "Surat",        "s": "Gujarat",        "lon": 72.8311, "lat": 21.1702},
+ {"n": "Vadodara",     "s": "Gujarat",        "lon": 73.1812, "lat": 22.3072},
+ {"n": "Rajkot",       "s": "Gujarat",        "lon": 70.8022, "lat": 22.3039},
+
+ {"n": "Jodhpur",      "s": "Rajasthan",      "lon": 73.0243, "lat": 26.2389},
+ {"n": "Udaipur",      "s": "Rajasthan",      "lon": 73.7125, "lat": 24.5854},
+ {"n": "Kota",         "s": "Rajasthan",      "lon": 75.8648, "lat": 25.2138},
+ {"n": "Bikaner",      "s": "Rajasthan",      "lon": 73.3119, "lat": 28.0229},
+
+ {"n": "Siliguri",     "s": "West Bengal",    "lon": 88.4297, "lat": 26.7271},
+ {"n": "Durgapur",     "s": "West Bengal",    "lon": 87.3119, "lat": 23.5204},
+ {"n": "Asansol",      "s": "West Bengal",    "lon": 86.9524, "lat": 23.6739},
+
+ {"n": "Indore",       "s": "Madhya Pradesh", "lon": 75.8577, "lat": 22.7196},
+ {"n": "Jabalpur",     "s": "Madhya Pradesh", "lon": 79.9864, "lat": 23.1815},
+ {"n": "Gwalior",      "s": "Madhya Pradesh", "lon": 78.1828, "lat": 26.2183},
+ {"n": "Ujjain",       "s": "Madhya Pradesh", "lon": 75.7885, "lat": 23.1765},
+
+ {"n": "Visakhapatnam", "s": "Andhra Pradesh", "lon": 83.2185, "lat": 17.6868},
+ {"n": "Vijayawada",   "s": "Andhra Pradesh", "lon": 80.6480, "lat": 16.5062},
+ {"n": "Tirupati",     "s": "Andhra Pradesh", "lon": 79.4192, "lat": 13.6288},
+ {"n": "Guntur",       "s": "Andhra Pradesh", "lon": 80.4365, "lat": 16.3067},
+
+ {"n": "Warangal",     "s": "Telangana",      "lon": 79.5941, "lat": 17.9689},
+ {"n": "Nizamabad",    "s": "Telangana",      "lon": 78.0941, "lat": 18.6725},
+
+ {"n": "Gaya",         "s": "Bihar",          "lon": 85.0002, "lat": 24.7955},
+ {"n": "Bhagalpur",    "s": "Bihar",          "lon": 86.9842, "lat": 25.2445},
+ {"n": "Muzaffarpur",  "s": "Bihar",          "lon": 85.3906, "lat": 26.1225},
+
+ {"n": "Amritsar",     "s": "Punjab",         "lon": 74.8723, "lat": 31.6340},
+ {"n": "Ludhiana",     "s": "Punjab",         "lon": 75.8573, "lat": 30.9010},
+ {"n": "Jalandhar",    "s": "Punjab",         "lon": 75.5762, "lat": 31.3260},
+
+ {"n": "Gurugram",     "s": "Haryana",        "lon": 77.0266, "lat": 28.4595},
+ {"n": "Faridabad",    "s": "Haryana",        "lon": 77.3178, "lat": 28.4089},
+ {"n": "Panipat",      "s": "Haryana",        "lon": 76.9635, "lat": 29.3909},
+
+ {"n": "Kochi",        "s": "Kerala",         "lon": 76.2673, "lat": 9.9312},
+ {"n": "Kozhikode",    "s": "Kerala",         "lon": 75.7804, "lat": 11.2588},
+ {"n": "Thrissur",     "s": "Kerala",         "lon": 76.2144, "lat": 10.5276},
+
+ {"n": "Cuttack",      "s": "Odisha",         "lon": 85.8830, "lat": 20.4625},
+ {"n": "Rourkela",     "s": "Odisha",         "lon": 84.8536, "lat": 22.2604},
+ {"n": "Puri",         "s": "Odisha",         "lon": 85.8312, "lat": 19.8135},
+
+ {"n": "Jamshedpur",   "s": "Jharkhand",      "lon": 86.2029, "lat": 22.8046},
+ {"n": "Dhanbad",      "s": "Jharkhand",      "lon": 86.4304, "lat": 23.7957},
+ {"n": "Bokaro",       "s": "Jharkhand",      "lon": 86.1511, "lat": 23.6693},
+
+ {"n": "Bhilai",       "s": "Chhattisgarh",   "lon": 81.3509, "lat": 21.2094},
+ {"n": "Bilaspur",     "s": "Chhattisgarh",   "lon": 82.1391, "lat": 22.0797},
+
+ {"n": "Guwahati",     "s": "Assam",          "lon": 91.7362, "lat": 26.1433},
+ {"n": "Silchar",      "s": "Assam",          "lon": 92.7789, "lat": 24.8333},
+ {"n": "Dibrugarh",    "s": "Assam",          "lon": 94.9120, "lat": 27.4728},
+
+ {"n": "Dharamshala",  "s": "Himachal Pradesh", "lon": 76.3234, "lat": 32.2190},
+ {"n": "Manali",       "s": "Himachal Pradesh", "lon": 77.1892, "lat": 32.2432},
+
+ {"n": "Haridwar",     "s": "Uttarakhand",    "lon": 78.1642, "lat": 29.9457},
+ {"n": "Nainital",     "s": "Uttarakhand",    "lon": 79.4636, "lat": 29.3919},
+
+ {"n": "Jammu",        "s": "Jammu & Kashmir", "lon": 74.8570, "lat": 32.7266, "note": "winter capital"}
+]

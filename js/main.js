@@ -295,6 +295,10 @@ function redrape() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + 0.01;
   }
+  for (const p of cityPins) {
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    p.obj.position.y = e * hpm() + 0.008;
+  }
   for (const l of surfaceLabels) {
     const e = Math.max(heightAt(l.lon, l.lat) ?? 0, 0);
     l.obj.position.y = e * hpm() + 0.02;
@@ -323,17 +327,18 @@ function surfaceLabel(html, cls, lon, lat) {
 const G = {
   peaks: new THREE.Group(), him3: new THREE.Group(), ranges: new THREE.Group(),
   rivers: new THREE.Group(), physio: new THREE.Group(), seas: new THREE.Group(),
-  basins: new THREE.Group(), states: new THREE.Group(),
+  basins: new THREE.Group(), states: new THREE.Group(), cities: new THREE.Group(),
 };
 Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
 
 const peakPins = [];
 const capitalPins = [];
+const cityPins = [];
 const fmtIN = n => n.toLocaleString('en-IN');
 
 async function buildOverlays() {
-  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals] = await Promise.all(
-    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals']
+  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities']
       .map(n => fetch('data/' + n + '.json').then(r => r.json()))
   );
 
@@ -471,6 +476,22 @@ async function buildOverlays() {
     capitalPins.push({ obj: dot, lon: cap.lon, lat: cap.lat });
     G.states.add(dot);
   }
+
+  /* other important cities — smaller, dimmer dot than a capital */
+  const cityGeo = new THREE.CircleGeometry(0.016, 12);
+  const cityDotMat = new THREE.MeshBasicMaterial({ color: 0xaebbcf });
+  for (const city of cities) {
+    const dot = new THREE.Mesh(cityGeo, cityDotMat);
+    dot.rotation.x = -Math.PI / 2;
+    const e = Math.max(heightAt(city.lon, city.lat) ?? 0, 0);
+    dot.position.set(toX(city.lon), e * hpm() + 0.008, toZ(city.lat));
+    const label = makeLabel('· ' + city.n, 'city', city.lon, city.lat, 0);
+    label.position.set(0, 0.03, 0);
+    label.center.set(0, 0.5);
+    dot.add(label);
+    cityPins.push({ obj: dot, lon: city.lon, lat: city.lat });
+    G.cities.add(dot);
+  }
 }
 
 /* ————— peak-label decluttering by distance ————— */
@@ -545,6 +566,7 @@ ly('ly-rivers').onchange = e => G.rivers.visible = e.target.checked;
 ly('ly-physio').onchange = e => G.physio.visible = e.target.checked;
 ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
 ly('ly-states').onchange = e => G.states.visible = e.target.checked;
+ly('ly-cities').onchange = e => G.cities.visible = e.target.checked;
 ly('ly-basins').onchange = e => {
   const on = e.target.checked;
   G.basins.visible = on;
