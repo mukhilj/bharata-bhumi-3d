@@ -51,6 +51,7 @@ html,body{height:100%;overflow:hidden;background:var(--ink);
 .sw-basins{background:linear-gradient(90deg,#4285f4,#34a853,#ff6d00)}
 .sw-physio{background:#e8c46f}
 .sw-seas{background:#1c4a76}
+.sw-states{background:repeating-linear-gradient(90deg,#e8edf4 0 4px,transparent 4px 7px)}
 
 #basin-list{list-style:none;font-size:13px}
 #basin-list li{display:flex;align-items:center;gap:8px;padding:2.5px 0;color:#d7dfe9}
@@ -81,6 +82,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .lbl.basin{color:#fff;font-size:12.5px;letter-spacing:.06em;
   background:#00000055;padding:1px 7px;border-radius:9px}
 .lbl.trap{color:#ff8a65;font-size:12px;font-weight:700;letter-spacing:.08em}
+.lbl.capital{color:#f2dfae;font-size:11.5px;font-weight:600}
+.lbl.capital .note{display:block;color:#9aa7b8;font-weight:400;font-size:9.5px}
+.lbl.capital.national{color:#ffd54f;font-size:12.5px;font-weight:700}
+.lbl.capital.national .note{color:#ffe9a8;font-size:10px}
 
 /* ————— probe readout ————— */
 #probe{position:absolute;z-index:12;background:#0e1826ee;border:1px solid var(--accent);

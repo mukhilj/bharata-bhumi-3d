@@ -291,6 +291,10 @@ function redrape() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm();
   }
+  for (const p of capitalPins) {
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    p.obj.position.y = e * hpm() + 0.01;
+  }
   for (const l of surfaceLabels) {
     const e = Math.max(heightAt(l.lon, l.lat) ?? 0, 0);
     l.obj.position.y = e * hpm() + 0.02;
@@ -319,16 +323,17 @@ function surfaceLabel(html, cls, lon, lat) {
 const G = {
   peaks: new THREE.Group(), him3: new THREE.Group(), ranges: new THREE.Group(),
   rivers: new THREE.Group(), physio: new THREE.Group(), seas: new THREE.Group(),
-  basins: new THREE.Group(),
+  basins: new THREE.Group(), states: new THREE.Group(),
 };
 Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
 
 const peakPins = [];
+const capitalPins = [];
 const fmtIN = n => n.toLocaleString('en-IN');
 
 async function buildOverlays() {
-  const [peaks, ranges, rivers, lakes, labels, trap, basins] = await Promise.all(
-    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins']
+  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals']
       .map(n => fetch('data/' + n + '.json').then(r => r.json()))
   );
 
@@ -437,6 +442,35 @@ async function buildOverlays() {
     ul.appendChild(li);
     if (b.lon) G.basins.add(surfaceLabel(b.name + ' basin', 'basin', b.lon, b.lat));
   }
+
+  /* state / UT boundaries — dashed outline draped over the terrain */
+  const stateMat = lineMaterial(0xe8edf4, 1.6, true);
+  for (const st of states) {
+    for (const ring of st.rings) {
+      const ln = drapedLine(ring, stateMat, 6);
+      if (ln) G.states.add(ln);
+    }
+  }
+
+  /* state / UT capitals — dot marker + name, gold star for the national capital */
+  const capGeo = new THREE.CircleGeometry(0.026, 16);
+  const capGeoNat = new THREE.CircleGeometry(0.045, 5);
+  for (const cap of capitals) {
+    const isNat = !!cap.national;
+    const dot = new THREE.Mesh(isNat ? capGeoNat : capGeo,
+      new THREE.MeshBasicMaterial({ color: isNat ? 0xffd54f : 0xf2dfae }));
+    dot.rotation.x = -Math.PI / 2;
+    const e = Math.max(heightAt(cap.lon, cap.lat) ?? 0, 0);
+    dot.position.set(toX(cap.lon), e * hpm() + 0.01, toZ(cap.lat));
+    const html = (isNat ? '★ ' : '● ') + cap.n +
+      (isNat ? ` <span class="note">National Capital</span>` : ` <span class="note">${cap.s}</span>`);
+    const label = makeLabel(html, 'capital' + (isNat ? ' national' : ''), cap.lon, cap.lat, 0);
+    label.position.set(0, 0.045, 0);
+    label.center.set(0, 0.5);
+    dot.add(label);
+    capitalPins.push({ obj: dot, lon: cap.lon, lat: cap.lat });
+    G.states.add(dot);
+  }
 }
 
 /* ————— peak-label decluttering by distance ————— */
@@ -510,6 +544,7 @@ ly('ly-ranges').onchange = e => G.ranges.visible = e.target.checked;
 ly('ly-rivers').onchange = e => G.rivers.visible = e.target.checked;
 ly('ly-physio').onchange = e => G.physio.visible = e.target.checked;
 ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
+ly('ly-states').onchange = e => G.states.visible = e.target.checked;
 ly('ly-basins').onchange = e => {
   const on = e.target.checked;
   G.basins.visible = on;
