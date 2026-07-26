@@ -1,13 +1,17 @@
 [
- {"n": "SW Monsoon — Arabian Sea Branch", "note": "onset ~1 June, Kerala coast",
+ {"n": "SW Monsoon — Kerala coast", "note": "landfall ~1 June",
   "type": "sw", "c": "#3fa9f5", "lift": 16, "doyStart": 152, "doyEnd": 288,
-  "pts": [[68.5, 8.5], [74.5, 9.5], [72.9, 15.5], [72.3, 19.2], [70.0, 22.8]]},
+  "pts": [[68.0, 8.0], [75.5, 8.6], [76.0, 9.9], [75.6, 11.0], [74.85, 12.9]]},
 
- {"n": "SW Monsoon — inland surge", "note": "crosses the Deccan plateau",
-  "type": "sw", "c": "#3fa9f5", "lift": 16, "doyStart": 163, "doyEnd": 288,
-  "pts": [[75.5, 12.5], [78.0, 17.5], [80.5, 21.5]]},
+ {"n": "SW Monsoon — Konkan & Maharashtra coast", "note": "reaches Mumbai ~10 June, Gujarat by ~20 June",
+  "type": "sw", "c": "#3fa9f5", "lift": 16, "doyStart": 161, "doyEnd": 258,
+  "pts": [[74.2, 14.0], [73.8, 15.5], [72.9, 17.7], [72.8, 19.1], [72.6, 21.5], [70.0, 22.8]]},
 
- {"n": "SW Monsoon — Bay of Bengal Branch", "note": "onset ~1 June, Andaman & Myanmar coast",
+ {"n": "SW Monsoon — inland surge across the Deccan", "note": "carries the coastal rain inland, ~15 June",
+  "type": "sw", "c": "#64b5f6", "lift": 16, "doyStart": 163, "doyEnd": 278,
+  "pts": [[75.5, 13.0], [77.5, 16.5], [79.5, 19.5], [81.0, 22.0]]},
+
+ {"n": "SW Monsoon — Bay of Bengal Branch", "note": "onset ~1 June, Andaman & Odisha coast",
   "type": "sw", "c": "#2f8fce", "lift": 16, "doyStart": 152, "doyEnd": 288,
   "pts": [[93.0, 11.0], [88.5, 17.5], [85.5, 20.5], [83.5, 24.0], [80.5, 26.0]]},
 
@@ -20,10 +24,10 @@
   "pts": [[71.5, 23.5], [74.0, 26.5], [76.5, 29.5]]},
 
  {"n": "Retreating Monsoon — withdrawal", "note": "withdraws from the Northwest from ~1 Sept",
-  "type": "retreat", "c": "#ff8a5c", "lift": 16, "doyStart": 244, "doyEnd": 288,
+  "type": "retreat", "c": "#ffb74d", "lift": 16, "doyStart": 244, "doyEnd": 288,
   "pts": [[75.0, 30.0], [78.0, 25.5], [80.5, 21.0]]},
 
  {"n": "Northeast (Retreating) Monsoon", "note": "brings winter rain to Tamil Nadu, Oct–Dec",
-  "type": "retreat", "c": "#ff7043", "lift": 16, "doyStart": 288, "doyEnd": 360,
+  "type": "retreat", "c": "#e64a19", "lift": 16, "doyStart": 288, "doyEnd": 360,
   "pts": [[88.0, 19.5], [83.5, 15.5], [80.0, 11.0], [78.5, 9.0]]}
 ]

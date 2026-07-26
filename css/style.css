@@ -72,6 +72,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .presets button{background:#1d2a40;border:1px solid var(--line);color:var(--text);border-radius:6px;
   padding:6px 9px;font-size:12.5px;cursor:pointer}
 .presets button:hover{background:#27395a;border-color:var(--accent)}
+.presets button.active{background:#27395a;border-color:var(--accent);color:var(--accent)}
 #panel footer{margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
 #panel footer p{color:var(--dim);font-size:12px;line-height:1.5}
 

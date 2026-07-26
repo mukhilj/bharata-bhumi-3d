@@ -831,6 +831,8 @@ const monsoonAnim = { doy: 196, playing: false, speed: 26, drift: 0 };   // doy/
 const monDoyEl = document.getElementById('mon-doy');
 const monDateEl = document.getElementById('mon-date');
 const monPlayBtn = document.getElementById('mon-play');
+const monModeSw = document.getElementById('mon-mode-sw');
+const monModeRetreat = document.getElementById('mon-mode-retreat');
 
 function updateMonsoonAnim(dt) {
   if (!G.monsoon.visible) return;
@@ -847,6 +849,8 @@ function updateMonsoonAnim(dt) {
   if (nearOnset.length) text += ` · reaching ${nearOnset.map(m => m.n).join(', ')}`;
   else if (nearWithdraw.length) text += ` · retreating from ${nearWithdraw.map(m => m.n).join(', ')}`;
   monDateEl.textContent = text;
+  monModeSw.classList.toggle('active', doy < 244);
+  monModeRetreat.classList.toggle('active', doy >= 244);
 
   // screen-space heading for the arrow glyphs — same trick the compass needle uses,
   // since a CSS2D icon's own rotation isn't affected by the 3D camera at all
@@ -879,6 +883,17 @@ monPlayBtn.addEventListener('click', () => {
   monsoonAnim.playing = !monsoonAnim.playing;
   monPlayBtn.textContent = monsoonAnim.playing ? '⏸ Pause' : '▶ Play the season';
 });
+
+/* SW / Retreating quick-toggle — jumps the calendar clock to a representative
+   date for that phase rather than tracking two separate visibility systems */
+function setMonsoonMode(doy) {
+  monsoonAnim.playing = false;
+  monPlayBtn.textContent = '▶ Play the season';
+  monsoonAnim.doy = doy;
+  monDoyEl.value = doy;
+}
+monModeSw.addEventListener('click', () => setMonsoonMode(196));       // 15 Jul — SW fully established
+monModeRetreat.addEventListener('click', () => setMonsoonMode(288));  // 15 Oct — withdrawal meets NE monsoon
 
 /* hypsometric legend */
 (function drawRamp() {
