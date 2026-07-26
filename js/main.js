@@ -549,11 +549,14 @@ async function buildOverlays() {
     if (ln) G.monsoon.add(ln);
 
     const arrows = [];
-    for (let i = 0; i < 5; i++) {
-      const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.3, 8),
-        new THREE.MeshBasicMaterial({ color: m.c }));
-      G.monsoon.add(mesh);
-      arrows.push({ mesh, phase: i / 5 });
+    for (let i = 0; i < 6; i++) {
+      const div = document.createElement('div');
+      div.className = 'lbl mon-arrow';
+      div.innerHTML = `<span style="color:${m.c}">&#10148;</span>`;
+      const obj = new CSS2DObject(div);
+      obj.glyph = div.firstElementChild;
+      G.monsoon.add(obj);
+      arrows.push({ obj, phase: i / 6 });
     }
 
     const mid = m.pts[Math.floor(m.pts.length / 2)];
@@ -828,7 +831,6 @@ const monsoonAnim = { doy: 196, playing: false, speed: 26, drift: 0 };   // doy/
 const monDoyEl = document.getElementById('mon-doy');
 const monDateEl = document.getElementById('mon-date');
 const monPlayBtn = document.getElementById('mon-play');
-const _flowDir = new THREE.Vector3(), _flowUp = new THREE.Vector3(0, 1, 0);
 
 function updateMonsoonAnim(dt) {
   if (!G.monsoon.visible) return;
@@ -846,19 +848,23 @@ function updateMonsoonAnim(dt) {
   else if (nearWithdraw.length) text += ` · retreating from ${nearWithdraw.map(m => m.n).join(', ')}`;
   monDateEl.textContent = text;
 
+  // screen-space heading for the arrow glyphs — same trick the compass needle uses,
+  // since a CSS2D icon's own rotation isn't affected by the 3D camera at all
+  const azDeg = controls.getAzimuthalAngle() * 180 / Math.PI;
+
   for (const f of monsoonFlows) {
     const active = doy >= f.doyStart && doy <= f.doyEnd;
     if (f.line) f.line.visible = active;
     f.label.visible = active;
     for (const a of f.arrows) {
-      a.mesh.visible = active;
+      a.obj.visible = active;
       if (!active) continue;
-      const t = (a.phase + monsoonAnim.drift * 0.08) % 1;
+      const t = (a.phase + monsoonAnim.drift * 0.12) % 1;
       const s = sampleFlow(f.pts, t);
       const e = Math.max(heightAt(s.lon, s.lat) ?? 0, 0);
-      a.mesh.position.set(toX(s.lon), e * hpm() + f.lift * hpm() * 8 + 0.01, toZ(s.lat));
-      _flowDir.set(s.dirX, 0, s.dirZ);
-      if (_flowDir.lengthSq() > 1e-9) a.mesh.quaternion.setFromUnitVectors(_flowUp, _flowDir.normalize());
+      a.obj.position.set(toX(s.lon), e * hpm() + f.lift * hpm() * 8 + 0.01, toZ(s.lat));
+      const bearingDeg = Math.atan2(s.dirX, -s.dirZ) * 180 / Math.PI;
+      a.obj.glyph.style.transform = `rotate(${bearingDeg - 90 - azDeg}deg)`;
     }
   }
   for (const m of monsoonMarkers) m.obj.visible = doy >= m.onsetDoy - 1 && doy <= m.withdrawDoy;
