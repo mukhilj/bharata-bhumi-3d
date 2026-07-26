@@ -47,7 +47,9 @@
       <label class="layer"><input type="checkbox" id="ly-seas"><span class="sw sw-seas"></span>Seas &amp; oceans</label>
       <label class="layer"><input type="checkbox" id="ly-states"><span class="sw sw-states"></span>State boundaries &amp; capitals</label>
       <label class="layer"><input type="checkbox" id="ly-cities"><span class="sw sw-cities"></span>Other important cities</label>
-      <label class="layer"><input type="checkbox" id="ly-monsoon"><span class="sw sw-monsoon"></span>Monsoon winds — SW &amp; retreating</label>
+      <label class="layer"><input type="checkbox" id="ly-wind-sw"><span class="sw sw-wind-sw"></span>SW Monsoon — wind flow (Indian Ocean &rarr; India)</label>
+      <label class="layer"><input type="checkbox" id="ly-wind-ne"><span class="sw sw-wind-ne"></span>NE / Retreating Monsoon — wind flow</label>
+      <label class="layer"><input type="checkbox" id="ly-monsoon-cal"><span class="sw sw-monsoon-cal"></span>Monsoon calendar — onset &amp; withdrawal dates</label>
       <label class="layer"><input type="checkbox" id="ly-rain-jul"><span class="sw sw-rain-jul"></span>Rainfall received — July</label>
       <label class="layer"><input type="checkbox" id="ly-rain-jan"><span class="sw sw-rain-jan"></span>Rainfall received — January</label>
       <label class="layer"><input type="checkbox" id="ly-rain-annual"><span class="sw sw-rain-annual"></span>Rainfall received — annual total</label>
@@ -56,17 +58,6 @@
     <section class="grp" id="basin-legend" hidden>
       <h2>River basins <span class="hint">— area in lakh km²</span></h2>
       <ul id="basin-list"></ul>
-    </section>
-
-    <section class="grp" id="monsoon-panel" hidden>
-      <h2>Monsoon calendar</h2>
-      <div class="presets">
-        <button id="mon-mode-sw" class="active">SW Monsoon — Jun–Sep</button>
-        <button id="mon-mode-retreat">Retreating / NE Monsoon — Oct–Dec</button>
-      </div>
-      <p id="mon-date" class="dim">15 Jul — monsoon fully established</p>
-      <input type="range" id="mon-doy" min="140" max="365" step="1" value="196">
-      <div class="presets"><button id="mon-play">▶ Play the season</button></div>
     </section>
 
     <section class="grp">

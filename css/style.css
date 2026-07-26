@@ -53,7 +53,9 @@ html,body{height:100%;overflow:hidden;background:var(--ink);
 .sw-seas{background:#1c4a76}
 .sw-states{background:repeating-linear-gradient(90deg,#e8edf4 0 4px,transparent 4px 7px)}
 .sw-cities{background:radial-gradient(circle,#aebbcf 40%,transparent 42%),#1d2a40}
-.sw-monsoon{background:linear-gradient(90deg,#3fa9f5 50%,#ff8a5c 50%)}
+.sw-wind-sw{background:radial-gradient(circle,#3fa9f5 45%,transparent 47%),#1d2a40}
+.sw-wind-ne{background:radial-gradient(circle,#e64a19 45%,transparent 47%),#1d2a40}
+.sw-monsoon-cal{background:radial-gradient(circle,transparent 30%,#64b5f6 32% 40%,transparent 42%),#1d2a40}
 .sw-rain-jul{background:radial-gradient(circle,#2f80ce 45%,transparent 47%),#1d2a40}
 .sw-rain-jan{background:radial-gradient(circle,#d9c467 45%,transparent 47%),#1d2a40}
 .sw-rain-annual{background:radial-gradient(circle,#7e57c2 45%,transparent 47%),#1d2a40}
@@ -72,7 +74,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .presets button{background:#1d2a40;border:1px solid var(--line);color:var(--text);border-radius:6px;
   padding:6px 9px;font-size:12.5px;cursor:pointer}
 .presets button:hover{background:#27395a;border-color:var(--accent)}
-.presets button.active{background:#27395a;border-color:var(--accent);color:var(--accent)}
 #panel footer{margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
 #panel footer p{color:var(--dim);font-size:12px;line-height:1.5}
 

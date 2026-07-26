@@ -300,9 +300,9 @@ function redrape() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + 0.008;
   }
-  for (const p of monsoonPins) {
+  for (const p of calendarPins) {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
-    p.obj.position.y = e * hpm() + p.lift * hpm() * 8 + p.off;
+    p.obj.position.y = e * hpm() + 0.012;
   }
   for (const p of [...rainJulPins, ...rainJanPins, ...rainAnnualPins]) {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
@@ -337,7 +337,7 @@ const G = {
   peaks: new THREE.Group(), him3: new THREE.Group(), ranges: new THREE.Group(),
   rivers: new THREE.Group(), physio: new THREE.Group(), seas: new THREE.Group(),
   basins: new THREE.Group(), states: new THREE.Group(), cities: new THREE.Group(),
-  monsoon: new THREE.Group(),
+  windSw: new THREE.Group(), windNe: new THREE.Group(), monsoonCal: new THREE.Group(),
   rainJul: new THREE.Group(), rainJan: new THREE.Group(), rainAnnual: new THREE.Group(),
 };
 Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
@@ -345,11 +345,23 @@ Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
 const peakPins = [];
 const capitalPins = [];
 const cityPins = [];
-const monsoonPins = [];                               // floating labels + calendar rings (height only)
-const monsoonFlows = [];                               // guide line + drifting arrow sprites per flow
-const monsoonMarkers = [];                             // per-place onset/withdrawal rings
+const calendarPins = [];                              // monsoon-calendar rings (height only, on redrape)
+const windParticles = [];                             // wind streak icons for both SW & NE layers
 const rainJulPins = [], rainJanPins = [], rainAnnualPins = [];
 const fmtIN = n => n.toLocaleString('en-IN');
+
+/* ————— label decluttering: every label registers its screen footprint and a
+   priority; lower priority number wins when two labels' boxes overlap ————— */
+const declutterList = [];
+function estimateLabelSize(html) {
+  const blockLines = (html.match(/<span class="(note|mm|h)"/g) || []).length;
+  const plain = html.replace(/<[^>]+>/g, '');
+  return { w: Math.min(230, plain.length * 6.4 + 14), h: 16 * (1 + blockLines) };
+}
+function regDeclutter(obj, group, priority, html, eligible) {
+  const { w, h } = estimateLabelSize(html);
+  declutterList.push({ obj, group, priority, w, h, eligible: eligible || (() => true) });
+}
 
 /* rainfall dot colour: dry tan → green → blue → violet for extreme totals */
 function rainColor(mm) {
@@ -372,19 +384,60 @@ function buildRainfallLayer(rainfall, group, pins, field) {
     const e = Math.max(heightAt(st.lon, st.lat) ?? 0, 0);
     dot.position.set(toX(st.lon), e * hpm() + 0.009, toZ(st.lat));
     const note = st.note ? ` <span class="note">${st.note}</span>` : '';
-    const label = makeLabel(`${st.n} <span class="mm">${mm.toLocaleString('en-IN')} mm</span>${note}`,
-      'rain', st.lon, st.lat, 0);
+    const html = `${st.n} <span class="mm">${mm.toLocaleString('en-IN')} mm</span>${note}`;
+    const label = makeLabel(html, 'rain', st.lon, st.lat, 0);
     label.position.set(0, 0.035, 0);
     label.center.set(0, 0.5);
     dot.add(label);
+    regDeclutter(label, group, 6, html);
     pins.push({ obj: dot, lon: st.lon, lat: st.lat });
     group.add(dot);
   }
 }
 
+/* wind streak icons float at a fixed atmosphere height, independent of terrain
+   exaggeration/heightAt — they represent air, not something draped on the ground */
+const WIND_Y = 1.6;
+const PARTICLES_PER_PATH = 16;
+
+function buildWindLayer(paths, group) {
+  for (const flow of paths) {
+    for (let i = 0; i < PARTICLES_PER_PATH; i++) {
+      const div = document.createElement('div');
+      div.className = 'lbl mon-arrow';
+      div.innerHTML = `<span style="color:${flow.c}">&#10148;</span>`;
+      const obj = new CSS2DObject(div);
+      obj.glyph = div.firstElementChild;
+      group.add(obj);
+      windParticles.push({
+        obj, pts: flow.pts, phase: i / PARTICLES_PER_PATH, group,
+        jitterLon: (Math.random() - 0.5) * 0.7, jitterLat: (Math.random() - 0.5) * 0.7,
+      });
+    }
+  }
+}
+
+/* advances every wind particle along its path and points its icon the right way;
+   only does the (cheap but nonzero) work for a layer that's actually visible */
+const windDrift = { t: 0 };
+function updateWindParticles(dt) {
+  if (!G.windSw.visible && !G.windNe.visible) return;
+  windDrift.t += dt;
+  const azDeg = controls.getAzimuthalAngle() * 180 / Math.PI;
+  for (const p of windParticles) {
+    if (!p.group.visible) continue;
+    const t = (p.phase + windDrift.t * 0.05) % 1;
+    const s = sampleFlow(p.pts, t);
+    const lon = s.lon + p.jitterLon, lat = s.lat + p.jitterLat;
+    p.obj.position.set(toX(lon), WIND_Y, toZ(lat));
+    const bearingDeg = Math.atan2(s.dirX, -s.dirZ) * 180 / Math.PI;
+    p.obj.glyph.style.transform = `rotate(${bearingDeg - 90 - azDeg}deg)`;
+  }
+}
+
 async function buildOverlays() {
-  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, monsoon, calendar, rainfall] = await Promise.all(
-    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'monsoon', 'monsoon_calendar', 'rainfall']
+  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, windSw, windNe, calendar, rainfall] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'wind_sw', 'wind_ne', 'monsoon_calendar', 'rainfall']
       .map(n => fetch('data/' + n + '.json').then(r => r.json()))
   );
 
@@ -398,12 +451,15 @@ async function buildOverlays() {
     pin.position.set(toX(p.lon), e * hpm(), toZ(p.lat));
     pin.rotation.x = Math.PI;
     const note = p.note ? `<span class="note">${p.note}</span>` : '';
-    const lbl = makeLabel(`▲ ${p.n} <span class="h">${fmtIN(p.h)} m</span>${note}`, 'peak', p.lon, p.lat, 0);
+    const html = `▲ ${p.n} <span class="h">${fmtIN(p.h)} m</span>${note}`;
+    const lbl = makeLabel(html, 'peak', p.lon, p.lat, 0);
     lbl.position.set(0, 0.05, 0);      // relative to the pin, not the world
     lbl.center.set(0.5, 1.35);
     pin.add(lbl);
     pin.userData.major = major;
     peakPins.push({ obj: pin, lon: p.lon, lat: p.lat });
+    regDeclutter(lbl, G.peaks, major ? 1 : 4, html,
+      () => major || camera.position.distanceTo(pin.position) < 13);
     G.peaks.add(pin);
   }
 
@@ -416,6 +472,7 @@ async function buildOverlays() {
     const mid = rg.pts[Math.floor(rg.pts.length / 2)];
     const l = surfaceLabel(rg.n, 'range', mid[0], mid[1]);
     l.element.style.color = rg.c;
+    regDeclutter(l, grp, 2, rg.n);
     grp.add(l);
   }
 
@@ -442,8 +499,11 @@ async function buildOverlays() {
     if (name && labelThese.has(name) && !seen.has(name) && longest) {
       seen.add(name);
       const mid = longest[Math.floor(longest.length / 2)];
-      if (mid[0] > LON0 && mid[0] < LON1 && mid[1] > LAT0 && mid[1] < LAT1)
-        G.rivers.add(surfaceLabel(name, 'river', mid[0], mid[1]));
+      if (mid[0] > LON0 && mid[0] < LON1 && mid[1] > LAT0 && mid[1] < LAT1) {
+        const l = surfaceLabel(name, 'river', mid[0], mid[1]);
+        regDeclutter(l, G.rivers, 3, name);
+        G.rivers.add(l);
+      }
     }
   }
 
@@ -476,14 +536,18 @@ async function buildOverlays() {
 
   /* region + sea labels */
   for (const lb of labels) {
-    if (lb.k === 'sea') G.seas.add(surfaceLabel(lb.n, 'sea', lb.lon, lb.lat));
-    else G.physio.add(surfaceLabel(lb.n, 'physio', lb.lon, lb.lat));
+    const grp = lb.k === 'sea' ? G.seas : G.physio;
+    const l = surfaceLabel(lb.n, lb.k === 'sea' ? 'sea' : 'physio', lb.lon, lb.lat);
+    regDeclutter(l, grp, 2, lb.n);
+    grp.add(l);
   }
 
   /* Deccan Traps outline */
   const trapLn = drapedLine(trap.outline, lineMaterial(0xff7043, 3.4, true), 10);
   if (trapLn) G.physio.add(trapLn);
-  G.physio.add(surfaceLabel('DECCAN TRAPS · lava plateau', 'trap', 76.2, 19.6));
+  const trapLbl = surfaceLabel('DECCAN TRAPS · lava plateau', 'trap', 76.2, 19.6);
+  regDeclutter(trapLbl, G.physio, 2, 'DECCAN TRAPS · lava plateau');
+  G.physio.add(trapLbl);
 
   /* basin legend + labels */
   const ul = document.getElementById('basin-list');
@@ -491,7 +555,11 @@ async function buildOverlays() {
     const li = document.createElement('li');
     li.innerHTML = `<span class="dot" style="background:${b.color}"></span>${b.name}<span class="a">${b.area_lakh_km2.toFixed(2)}</span>`;
     ul.appendChild(li);
-    if (b.lon) G.basins.add(surfaceLabel(b.name + ' basin', 'basin', b.lon, b.lat));
+    if (b.lon) {
+      const l = surfaceLabel(b.name + ' basin', 'basin', b.lon, b.lat);
+      regDeclutter(l, G.basins, 5, b.name + ' basin');
+      G.basins.add(l);
+    }
   }
 
   /* state / UT boundaries — dashed outline draped over the terrain */
@@ -520,6 +588,7 @@ async function buildOverlays() {
     label.center.set(0, 0.5);
     dot.add(label);
     capitalPins.push({ obj: dot, lon: cap.lon, lat: cap.lat });
+    regDeclutter(label, G.states, isNat ? 0 : 1, html);
     G.states.add(dot);
   }
 
@@ -531,62 +600,41 @@ async function buildOverlays() {
     dot.rotation.x = -Math.PI / 2;
     const e = Math.max(heightAt(city.lon, city.lat) ?? 0, 0);
     dot.position.set(toX(city.lon), e * hpm() + 0.008, toZ(city.lat));
-    const label = makeLabel('· ' + city.n, 'city', city.lon, city.lat, 0);
+    const html = '· ' + city.n;
+    const label = makeLabel(html, 'city', city.lon, city.lat, 0);
     label.position.set(0, 0.03, 0);
     label.center.set(0, 0.5);
     dot.add(label);
     cityPins.push({ obj: dot, lon: city.lon, lat: city.lat });
+    regDeclutter(label, G.cities, 3, html);
     G.cities.add(dot);
   }
 
-  /* monsoon wind flows — a faint guide path plus a stream of small arrows
-     that continuously drift along it; which flows are live is driven by
-     the monsoon-calendar clock (see updateMonsoonAnim), not fixed here */
-  for (const m of monsoon) {
-    const mat = lineMaterial(m.c, 1.4, true);
-    mat.transparent = true; mat.opacity = 0.35;
-    const ln = drapedLine(m.pts, mat, m.lift);
-    if (ln) G.monsoon.add(ln);
+  /* SW & NE monsoon wind flows — each a set of streamline paths (extending into
+     the southern hemisphere to show the SE trades turning into the monsoon),
+     with a dense stream of small drifting arrow icons per path. Always fully
+     animated when its layer is toggled on; two independent layers, no clock. */
+  buildWindLayer(windSw, G.windSw);
+  buildWindLayer(windNe, G.windNe);
 
-    const arrows = [];
-    for (let i = 0; i < 6; i++) {
-      const div = document.createElement('div');
-      div.className = 'lbl mon-arrow';
-      div.innerHTML = `<span style="color:${m.c}">&#10148;</span>`;
-      const obj = new CSS2DObject(div);
-      obj.glyph = div.firstElementChild;
-      G.monsoon.add(obj);
-      arrows.push({ obj, phase: i / 6 });
-    }
-
-    const mid = m.pts[Math.floor(m.pts.length / 2)];
-    const label = makeLabel(m.n + ` <span class="note">${m.note}</span>`, 'monsoon', mid[0], mid[1], 0);
-    G.monsoon.add(label);
-    monsoonPins.push({ obj: label, lon: mid[0], lat: mid[1], lift: m.lift, off: 0.06 });
-
-    monsoonFlows.push({ pts: m.pts, lift: m.lift, doyStart: m.doyStart, doyEnd: m.doyEnd, line: ln, arrows, label });
-  }
-
-  /* monsoon calendar — per-place onset/withdrawal rings, revealed by the clock */
+  /* monsoon calendar — per-place onset/withdrawal dates, static reference layer */
   const calRingGeo = new THREE.RingGeometry(0.026, 0.042, 20);
   const branchColor = { arabian: 0x3fa9f5, bay: 0x2f8fce, both: 0x64b5f6, ne: 0xff7043 };
   for (const c of calendar) {
     const ring = new THREE.Mesh(calRingGeo,
       new THREE.MeshBasicMaterial({ color: branchColor[c.branch] ?? 0xffffff, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
+    const e = Math.max(heightAt(c.lon, c.lat) ?? 0, 0);
+    ring.position.set(toX(c.lon), e * hpm() + 0.012, toZ(c.lat));
     const note = c.note ? ` <span class="note">${c.note}</span>` : '';
-    const label = makeLabel(`${c.n} <span class="note">onset ${c.onset} · withdraws ${c.withdraw}</span>${note}`,
-      'monsoon', c.lon, c.lat, 0);
+    const html = `${c.n} <span class="note">onset ${c.onset} · withdraws ${c.withdraw}</span>${note}`;
+    const label = makeLabel(html, 'monsoon', c.lon, c.lat, 0);
     label.position.set(0, 0.045, 0);
     label.center.set(0, 0.5);
     ring.add(label);
-    G.monsoon.add(ring);
-    monsoonPins.push({ obj: ring, lon: c.lon, lat: c.lat, lift: 0, off: 0.012 });
-    monsoonMarkers.push({ obj: ring, onsetDoy: c.onsetDoy, withdrawDoy: c.withdrawDoy, n: c.n });
-  }
-  for (const p of monsoonPins) {                       // set initial height (same formula as redrape)
-    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
-    p.obj.position.y = e * hpm() + p.lift * hpm() * 8 + p.off;
+    calendarPins.push({ obj: ring, lon: c.lon, lat: c.lat });
+    regDeclutter(label, G.monsoonCal, 7, html);
+    G.monsoonCal.add(ring);
   }
 
   /* rainfall received — same stations, three independent layers (Jul / Jan / annual) */
@@ -595,12 +643,31 @@ async function buildOverlays() {
   buildRainfallLayer(rainfall, G.rainAnnual, rainAnnualPins, 'annual');
 }
 
-/* ————— peak-label decluttering by distance ————— */
-function updatePeakVisibility() {
-  if (!G.peaks.visible) return;
-  for (const p of peakPins) {
-    const d = camera.position.distanceTo(p.obj.position);
-    p.obj.children[0].visible = p.obj.userData.major || d < 13;
+/* ————— label decluttering: project every eligible label to screen space,
+         then greedily keep the highest-priority ones that don't overlap ————— */
+const _declutterV = new THREE.Vector3();
+function updateDeclutter() {
+  camera.updateMatrixWorld();
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  const w = innerWidth, h = innerHeight;
+  const candidates = [];
+  for (const d of declutterList) {
+    if (!d.group.visible || !d.eligible()) { d.obj.visible = false; continue; }
+    d.obj.getWorldPosition(_declutterV);
+    _declutterV.project(camera);
+    if (_declutterV.z < -1 || _declutterV.z > 1) { d.obj.visible = false; continue; }
+    const x = (_declutterV.x + 1) / 2 * w, y = (1 - _declutterV.y) / 2 * h;
+    candidates.push({ d, x, y });
+  }
+  candidates.sort((a, b) => a.d.priority - b.d.priority);
+  const kept = [];
+  const margin = 3;
+  for (const c of candidates) {
+    const hw = c.d.w / 2 + margin, hh = c.d.h / 2 + margin;
+    const box = { x1: c.x - hw, y1: c.y - hh, x2: c.x + hw, y2: c.y + hh };
+    const overlaps = kept.some(k => box.x1 < k.x2 && box.x2 > k.x1 && box.y1 < k.y2 && box.y2 > k.y1);
+    c.d.obj.visible = !overlaps;
+    if (!overlaps) kept.push(box);
   }
 }
 
@@ -668,10 +735,9 @@ ly('ly-physio').onchange = e => G.physio.visible = e.target.checked;
 ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
 ly('ly-states').onchange = e => G.states.visible = e.target.checked;
 ly('ly-cities').onchange = e => G.cities.visible = e.target.checked;
-ly('ly-monsoon').onchange = e => {
-  G.monsoon.visible = e.target.checked;
-  document.getElementById('monsoon-panel').hidden = !e.target.checked;
-};
+ly('ly-wind-sw').onchange = e => G.windSw.visible = e.target.checked;
+ly('ly-wind-ne').onchange = e => G.windNe.visible = e.target.checked;
+ly('ly-monsoon-cal').onchange = e => G.monsoonCal.visible = e.target.checked;
 ly('ly-rain-jul').onchange = e => G.rainJul.visible = e.target.checked;
 ly('ly-rain-jan').onchange = e => G.rainJan.visible = e.target.checked;
 ly('ly-rain-annual').onchange = e => G.rainAnnual.visible = e.target.checked;
@@ -782,25 +848,6 @@ document.getElementById('compass').addEventListener('click', () => {
   northSpin = { t: 0, theta0: sph.theta, dTheta: d, phi: sph.phi, radius: sph.radius };
 });
 
-/* ————— monsoon calendar clock: drives which flows/arrows/markers show,
-         and animates the arrow sprites drifting along their guide paths ————— */
-const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MONTH_START = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];   // doy of the 1st (non-leap year)
-function doyToLabel(doy) {
-  doy = Math.round(doy);
-  let m = 11;
-  for (let i = 0; i < 12; i++) if (doy < MONTH_START[i]) { m = i - 1; break; }
-  return `${doy - MONTH_START[m] + 1} ${MONTH[m]}`;
-}
-function monsoonPhaseText(doy) {
-  if (doy < 152) return 'pre-monsoon';
-  if (doy < 182) return 'monsoon advancing across India';
-  if (doy < 244) return 'monsoon fully established';
-  if (doy < 288) return 'withdrawing from the Northwest';
-  if (doy < 355) return 'retreating / Northeast Monsoon over Tamil Nadu';
-  return 'monsoon season over';
-}
-
 function sampleFlow(pts, t) {                          // point + direction at fraction t along a lon/lat path
   const xz = pts.map(([lon, lat]) => [toX(lon), toZ(lat)]);
   let total = 0;
@@ -826,74 +873,6 @@ function sampleFlow(pts, t) {                          // point + direction at f
   const [lon, lat] = pts[pts.length - 1];
   return { lon, lat, dirX: 1, dirZ: 0 };
 }
-
-const monsoonAnim = { doy: 196, playing: false, speed: 26, drift: 0 };   // doy/sec while playing
-const monDoyEl = document.getElementById('mon-doy');
-const monDateEl = document.getElementById('mon-date');
-const monPlayBtn = document.getElementById('mon-play');
-const monModeSw = document.getElementById('mon-mode-sw');
-const monModeRetreat = document.getElementById('mon-mode-retreat');
-
-function updateMonsoonAnim(dt) {
-  if (!G.monsoon.visible) return;
-  monsoonAnim.drift += dt;
-  if (monsoonAnim.playing) {
-    monsoonAnim.doy += dt * monsoonAnim.speed;
-    if (monsoonAnim.doy > 365) monsoonAnim.doy = 140;
-    monDoyEl.value = monsoonAnim.doy;
-  }
-  const doy = monsoonAnim.doy;
-  const nearOnset = monsoonMarkers.filter(m => doy >= m.onsetDoy - 3 && doy <= m.onsetDoy + 3);
-  const nearWithdraw = monsoonMarkers.filter(m => Math.abs(doy - m.withdrawDoy) <= 3);
-  let text = `${doyToLabel(doy)} — ${monsoonPhaseText(doy)}`;
-  if (nearOnset.length) text += ` · reaching ${nearOnset.map(m => m.n).join(', ')}`;
-  else if (nearWithdraw.length) text += ` · retreating from ${nearWithdraw.map(m => m.n).join(', ')}`;
-  monDateEl.textContent = text;
-  monModeSw.classList.toggle('active', doy < 244);
-  monModeRetreat.classList.toggle('active', doy >= 244);
-
-  // screen-space heading for the arrow glyphs — same trick the compass needle uses,
-  // since a CSS2D icon's own rotation isn't affected by the 3D camera at all
-  const azDeg = controls.getAzimuthalAngle() * 180 / Math.PI;
-
-  for (const f of monsoonFlows) {
-    const active = doy >= f.doyStart && doy <= f.doyEnd;
-    if (f.line) f.line.visible = active;
-    f.label.visible = active;
-    for (const a of f.arrows) {
-      a.obj.visible = active;
-      if (!active) continue;
-      const t = (a.phase + monsoonAnim.drift * 0.12) % 1;
-      const s = sampleFlow(f.pts, t);
-      const e = Math.max(heightAt(s.lon, s.lat) ?? 0, 0);
-      a.obj.position.set(toX(s.lon), e * hpm() + f.lift * hpm() * 8 + 0.01, toZ(s.lat));
-      const bearingDeg = Math.atan2(s.dirX, -s.dirZ) * 180 / Math.PI;
-      a.obj.glyph.style.transform = `rotate(${bearingDeg - 90 - azDeg}deg)`;
-    }
-  }
-  for (const m of monsoonMarkers) m.obj.visible = doy >= m.onsetDoy - 1 && doy <= m.withdrawDoy;
-}
-
-monDoyEl.addEventListener('input', () => {
-  monsoonAnim.playing = false;
-  monPlayBtn.textContent = '▶ Play the season';
-  monsoonAnim.doy = +monDoyEl.value;
-});
-monPlayBtn.addEventListener('click', () => {
-  monsoonAnim.playing = !monsoonAnim.playing;
-  monPlayBtn.textContent = monsoonAnim.playing ? '⏸ Pause' : '▶ Play the season';
-});
-
-/* SW / Retreating quick-toggle — jumps the calendar clock to a representative
-   date for that phase rather than tracking two separate visibility systems */
-function setMonsoonMode(doy) {
-  monsoonAnim.playing = false;
-  monPlayBtn.textContent = '▶ Play the season';
-  monsoonAnim.doy = doy;
-  monDoyEl.value = doy;
-}
-monModeSw.addEventListener('click', () => setMonsoonMode(196));       // 15 Jul — SW fully established
-monModeRetreat.addEventListener('click', () => setMonsoonMode(288));  // 15 Oct — withdrawal meets NE monsoon
 
 /* hypsometric legend */
 (function drawRamp() {
@@ -951,6 +930,7 @@ async function loadTiles() {
 })();
 
 const needle = document.getElementById('needle');
+let declutterAccum = 0;
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta();
   if (fly) {
@@ -985,8 +965,9 @@ renderer.setAnimationLoop(() => {
     if (northSpin.t >= 1) northSpin = null;
   }
   controls.update();
-  updatePeakVisibility();
-  updateMonsoonAnim(dt);
+  updateWindParticles(dt);
+  declutterAccum += dt;
+  if (declutterAccum > 0.15) { declutterAccum = 0; updateDeclutter(); }
   needle.setAttribute('transform',
     `rotate(${-controls.getAzimuthalAngle() * 180 / Math.PI} 20 20)`);
   renderer.render(scene, camera);
