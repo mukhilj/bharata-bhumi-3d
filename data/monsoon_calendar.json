@@ -1,0 +1,20 @@
+[
+ {"n": "Thiruvananthapuram", "lon": 76.9366, "lat": 8.5241,  "branch": "arabian", "onsetDoy": 152, "onset": "1 Jun",  "withdrawDoy": 354, "withdraw": "20 Dec"},
+ {"n": "Mangaluru",          "lon": 74.8560, "lat": 12.9141, "branch": "arabian", "onsetDoy": 156, "onset": "5 Jun",  "withdrawDoy": 288, "withdraw": "15 Oct"},
+ {"n": "Bengaluru",          "lon": 77.5946, "lat": 12.9716, "branch": "arabian", "onsetDoy": 156, "onset": "5 Jun",  "withdrawDoy": 288, "withdraw": "15 Oct"},
+ {"n": "Bhubaneswar",        "lon": 85.8245, "lat": 20.2961, "branch": "bay",     "onsetDoy": 161, "onset": "10 Jun", "withdrawDoy": 288, "withdraw": "15 Oct"},
+ {"n": "Kolkata",            "lon": 88.3639, "lat": 22.5726, "branch": "bay",     "onsetDoy": 161, "onset": "10 Jun", "withdrawDoy": 283, "withdraw": "10 Oct"},
+ {"n": "Guwahati",           "lon": 91.7362, "lat": 26.1433, "branch": "bay",     "onsetDoy": 156, "onset": "5 Jun",  "withdrawDoy": 278, "withdraw": "5 Oct"},
+ {"n": "Mumbai",             "lon": 72.8777, "lat": 19.0760, "branch": "arabian", "onsetDoy": 161, "onset": "10 Jun", "withdrawDoy": 283, "withdraw": "10 Oct"},
+ {"n": "Nagpur",             "lon": 79.0882, "lat": 21.1458, "branch": "both",    "onsetDoy": 166, "onset": "15 Jun", "withdrawDoy": 278, "withdraw": "5 Oct"},
+ {"n": "Raipur",              "lon": 81.6296, "lat": 21.2514, "branch": "bay",     "onsetDoy": 166, "onset": "15 Jun", "withdrawDoy": 283, "withdraw": "10 Oct"},
+ {"n": "Patna",               "lon": 85.1376, "lat": 25.5941, "branch": "bay",     "onsetDoy": 166, "onset": "15 Jun", "withdrawDoy": 274, "withdraw": "1 Oct"},
+ {"n": "Bhopal",              "lon": 77.4126, "lat": 23.2599, "branch": "both",    "onsetDoy": 171, "onset": "20 Jun", "withdrawDoy": 278, "withdraw": "5 Oct"},
+ {"n": "Lucknow",             "lon": 80.9462, "lat": 26.8467, "branch": "bay",     "onsetDoy": 171, "onset": "20 Jun", "withdrawDoy": 268, "withdraw": "25 Sep"},
+ {"n": "Ahmedabad",           "lon": 72.5714, "lat": 23.0225, "branch": "arabian", "onsetDoy": 171, "onset": "20 Jun", "withdrawDoy": 258, "withdraw": "15 Sep"},
+ {"n": "Jaipur",              "lon": 75.7873, "lat": 26.9124, "branch": "arabian", "onsetDoy": 176, "onset": "25 Jun", "withdrawDoy": 258, "withdraw": "15 Sep"},
+ {"n": "Delhi",               "lon": 77.2090, "lat": 28.6139, "branch": "both",    "onsetDoy": 180, "onset": "29 Jun", "withdrawDoy": 268, "withdraw": "25 Sep"},
+ {"n": "Chandigarh",          "lon": 76.7794, "lat": 30.7333, "branch": "arabian", "onsetDoy": 182, "onset": "1 Jul",  "withdrawDoy": 258, "withdraw": "15 Sep"},
+ {"n": "Srinagar",            "lon": 74.7973, "lat": 34.0837, "branch": "arabian", "onsetDoy": 186, "onset": "5 Jul",  "withdrawDoy": 258, "withdraw": "15 Sep", "note": "weak — rain-shadow of the Pir Panjal"},
+ {"n": "Chennai",             "lon": 80.2707, "lat": 13.0827, "branch": "ne",      "onsetDoy": 152, "onset": "1 Jun",  "withdrawDoy": 365, "withdraw": "31 Dec", "note": "main rains come later — from the retreating/NE monsoon, Oct–Dec"}
+]

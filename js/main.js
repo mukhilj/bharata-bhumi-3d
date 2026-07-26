@@ -33,6 +33,7 @@ scene.fog = new THREE.Fog(0x0b1220, 55, 140);
 
 const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 400);
 camera.position.set(0, 30, 34);
+const clock = new THREE.Clock();
 
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.domElement.style.position = 'absolute';
@@ -344,7 +345,9 @@ Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
 const peakPins = [];
 const capitalPins = [];
 const cityPins = [];
-const monsoonPins = [];                               // arrowheads + labels that float above the terrain
+const monsoonPins = [];                               // floating labels + calendar rings (height only)
+const monsoonFlows = [];                               // guide line + drifting arrow sprites per flow
+const monsoonMarkers = [];                             // per-place onset/withdrawal rings
 const rainJulPins = [], rainJanPins = [], rainAnnualPins = [];
 const fmtIN = n => n.toLocaleString('en-IN');
 
@@ -380,8 +383,8 @@ function buildRainfallLayer(rainfall, group, pins, field) {
 }
 
 async function buildOverlays() {
-  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, monsoon, rainfall] = await Promise.all(
-    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'monsoon', 'rainfall']
+  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, monsoon, calendar, rainfall] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'monsoon', 'monsoon_calendar', 'rainfall']
       .map(n => fetch('data/' + n + '.json').then(r => r.json()))
   );
 
@@ -536,28 +539,47 @@ async function buildOverlays() {
     G.cities.add(dot);
   }
 
-  /* monsoon wind flows — draped arrow paths, floating above the terrain,
-     with an arrowhead cone at the tip pointing in the flow direction */
+  /* monsoon wind flows — a faint guide path plus a stream of small arrows
+     that continuously drift along it; which flows are live is driven by
+     the monsoon-calendar clock (see updateMonsoonAnim), not fixed here */
   for (const m of monsoon) {
-    const mat = lineMaterial(m.c, 3.2, m.type === 'retreat');
+    const mat = lineMaterial(m.c, 1.4, true);
+    mat.transparent = true; mat.opacity = 0.35;
     const ln = drapedLine(m.pts, mat, m.lift);
-    if (!ln) continue;
-    G.monsoon.add(ln);
+    if (ln) G.monsoon.add(ln);
 
-    const [lon1, lat1] = m.pts[m.pts.length - 2];
-    const [lon2, lat2] = m.pts[m.pts.length - 1];
-    const dir = new THREE.Vector3(toX(lon2) - toX(lon1), 0, toZ(lat2) - toZ(lat1)).normalize();
-    const head = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.4, 10),
-      new THREE.MeshBasicMaterial({ color: m.c }));
-    head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    head.position.set(toX(lon2), 0, toZ(lat2));
-    G.monsoon.add(head);
-    monsoonPins.push({ obj: head, lon: lon2, lat: lat2, lift: m.lift, off: 0.01 });
+    const arrows = [];
+    for (let i = 0; i < 5; i++) {
+      const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.3, 8),
+        new THREE.MeshBasicMaterial({ color: m.c }));
+      G.monsoon.add(mesh);
+      arrows.push({ mesh, phase: i / 5 });
+    }
 
     const mid = m.pts[Math.floor(m.pts.length / 2)];
     const label = makeLabel(m.n + ` <span class="note">${m.note}</span>`, 'monsoon', mid[0], mid[1], 0);
     G.monsoon.add(label);
     monsoonPins.push({ obj: label, lon: mid[0], lat: mid[1], lift: m.lift, off: 0.06 });
+
+    monsoonFlows.push({ pts: m.pts, lift: m.lift, doyStart: m.doyStart, doyEnd: m.doyEnd, line: ln, arrows, label });
+  }
+
+  /* monsoon calendar — per-place onset/withdrawal rings, revealed by the clock */
+  const calRingGeo = new THREE.RingGeometry(0.026, 0.042, 20);
+  const branchColor = { arabian: 0x3fa9f5, bay: 0x2f8fce, both: 0x64b5f6, ne: 0xff7043 };
+  for (const c of calendar) {
+    const ring = new THREE.Mesh(calRingGeo,
+      new THREE.MeshBasicMaterial({ color: branchColor[c.branch] ?? 0xffffff, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2;
+    const note = c.note ? ` <span class="note">${c.note}</span>` : '';
+    const label = makeLabel(`${c.n} <span class="note">onset ${c.onset} · withdraws ${c.withdraw}</span>${note}`,
+      'monsoon', c.lon, c.lat, 0);
+    label.position.set(0, 0.045, 0);
+    label.center.set(0, 0.5);
+    ring.add(label);
+    G.monsoon.add(ring);
+    monsoonPins.push({ obj: ring, lon: c.lon, lat: c.lat, lift: 0, off: 0.012 });
+    monsoonMarkers.push({ obj: ring, onsetDoy: c.onsetDoy, withdrawDoy: c.withdrawDoy, n: c.n });
   }
   for (const p of monsoonPins) {                       // set initial height (same formula as redrape)
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
@@ -643,7 +665,10 @@ ly('ly-physio').onchange = e => G.physio.visible = e.target.checked;
 ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
 ly('ly-states').onchange = e => G.states.visible = e.target.checked;
 ly('ly-cities').onchange = e => G.cities.visible = e.target.checked;
-ly('ly-monsoon').onchange = e => G.monsoon.visible = e.target.checked;
+ly('ly-monsoon').onchange = e => {
+  G.monsoon.visible = e.target.checked;
+  document.getElementById('monsoon-panel').hidden = !e.target.checked;
+};
 ly('ly-rain-jul').onchange = e => G.rainJul.visible = e.target.checked;
 ly('ly-rain-jan').onchange = e => G.rainJan.visible = e.target.checked;
 ly('ly-rain-annual').onchange = e => G.rainAnnual.visible = e.target.checked;
@@ -754,6 +779,101 @@ document.getElementById('compass').addEventListener('click', () => {
   northSpin = { t: 0, theta0: sph.theta, dTheta: d, phi: sph.phi, radius: sph.radius };
 });
 
+/* ————— monsoon calendar clock: drives which flows/arrows/markers show,
+         and animates the arrow sprites drifting along their guide paths ————— */
+const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_START = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];   // doy of the 1st (non-leap year)
+function doyToLabel(doy) {
+  doy = Math.round(doy);
+  let m = 11;
+  for (let i = 0; i < 12; i++) if (doy < MONTH_START[i]) { m = i - 1; break; }
+  return `${doy - MONTH_START[m] + 1} ${MONTH[m]}`;
+}
+function monsoonPhaseText(doy) {
+  if (doy < 152) return 'pre-monsoon';
+  if (doy < 182) return 'monsoon advancing across India';
+  if (doy < 244) return 'monsoon fully established';
+  if (doy < 288) return 'withdrawing from the Northwest';
+  if (doy < 355) return 'retreating / Northeast Monsoon over Tamil Nadu';
+  return 'monsoon season over';
+}
+
+function sampleFlow(pts, t) {                          // point + direction at fraction t along a lon/lat path
+  const xz = pts.map(([lon, lat]) => [toX(lon), toZ(lat)]);
+  let total = 0;
+  const segLen = [];
+  for (let i = 0; i < xz.length - 1; i++) {
+    const d = Math.hypot(xz[i + 1][0] - xz[i][0], xz[i + 1][1] - xz[i][1]);
+    segLen.push(d); total += d;
+  }
+  const target = t * total;
+  let acc = 0;
+  for (let i = 0; i < segLen.length; i++) {
+    const segEnd = acc + segLen[i];
+    if (segEnd >= target || i === segLen.length - 1) {
+      const local = segLen[i] > 0 ? THREE.MathUtils.clamp((target - acc) / segLen[i], 0, 1) : 0;
+      return {
+        lon: pts[i][0] + (pts[i + 1][0] - pts[i][0]) * local,
+        lat: pts[i][1] + (pts[i + 1][1] - pts[i][1]) * local,
+        dirX: xz[i + 1][0] - xz[i][0], dirZ: xz[i + 1][1] - xz[i][1],
+      };
+    }
+    acc = segEnd;
+  }
+  const [lon, lat] = pts[pts.length - 1];
+  return { lon, lat, dirX: 1, dirZ: 0 };
+}
+
+const monsoonAnim = { doy: 196, playing: false, speed: 26, drift: 0 };   // doy/sec while playing
+const monDoyEl = document.getElementById('mon-doy');
+const monDateEl = document.getElementById('mon-date');
+const monPlayBtn = document.getElementById('mon-play');
+const _flowDir = new THREE.Vector3(), _flowUp = new THREE.Vector3(0, 1, 0);
+
+function updateMonsoonAnim(dt) {
+  if (!G.monsoon.visible) return;
+  monsoonAnim.drift += dt;
+  if (monsoonAnim.playing) {
+    monsoonAnim.doy += dt * monsoonAnim.speed;
+    if (monsoonAnim.doy > 365) monsoonAnim.doy = 140;
+    monDoyEl.value = monsoonAnim.doy;
+  }
+  const doy = monsoonAnim.doy;
+  const nearOnset = monsoonMarkers.filter(m => doy >= m.onsetDoy - 3 && doy <= m.onsetDoy + 3);
+  const nearWithdraw = monsoonMarkers.filter(m => Math.abs(doy - m.withdrawDoy) <= 3);
+  let text = `${doyToLabel(doy)} — ${monsoonPhaseText(doy)}`;
+  if (nearOnset.length) text += ` · reaching ${nearOnset.map(m => m.n).join(', ')}`;
+  else if (nearWithdraw.length) text += ` · retreating from ${nearWithdraw.map(m => m.n).join(', ')}`;
+  monDateEl.textContent = text;
+
+  for (const f of monsoonFlows) {
+    const active = doy >= f.doyStart && doy <= f.doyEnd;
+    if (f.line) f.line.visible = active;
+    f.label.visible = active;
+    for (const a of f.arrows) {
+      a.mesh.visible = active;
+      if (!active) continue;
+      const t = (a.phase + monsoonAnim.drift * 0.08) % 1;
+      const s = sampleFlow(f.pts, t);
+      const e = Math.max(heightAt(s.lon, s.lat) ?? 0, 0);
+      a.mesh.position.set(toX(s.lon), e * hpm() + f.lift * hpm() * 8 + 0.01, toZ(s.lat));
+      _flowDir.set(s.dirX, 0, s.dirZ);
+      if (_flowDir.lengthSq() > 1e-9) a.mesh.quaternion.setFromUnitVectors(_flowUp, _flowDir.normalize());
+    }
+  }
+  for (const m of monsoonMarkers) m.obj.visible = doy >= m.onsetDoy - 1 && doy <= m.withdrawDoy;
+}
+
+monDoyEl.addEventListener('input', () => {
+  monsoonAnim.playing = false;
+  monPlayBtn.textContent = '▶ Play the season';
+  monsoonAnim.doy = +monDoyEl.value;
+});
+monPlayBtn.addEventListener('click', () => {
+  monsoonAnim.playing = !monsoonAnim.playing;
+  monPlayBtn.textContent = monsoonAnim.playing ? '⏸ Pause' : '▶ Play the season';
+});
+
 /* hypsometric legend */
 (function drawRamp() {
   const cv = document.getElementById('ramp'), ctx = cv.getContext('2d');
@@ -811,6 +931,7 @@ async function loadTiles() {
 
 const needle = document.getElementById('needle');
 renderer.setAnimationLoop(() => {
+  const dt = clock.getDelta();
   if (fly) {
     fly.t = Math.min(1, fly.t + 0.016);
     const s = fly.t * fly.t * (3 - 2 * fly.t);
@@ -844,6 +965,7 @@ renderer.setAnimationLoop(() => {
   }
   controls.update();
   updatePeakVisibility();
+  updateMonsoonAnim(dt);
   needle.setAttribute('transform',
     `rotate(${-controls.getAzimuthalAngle() * 180 / Math.PI} 20 20)`);
   renderer.render(scene, camera);
