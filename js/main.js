@@ -299,6 +299,10 @@ function redrape() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + 0.008;
   }
+  for (const p of monsoonPins) {
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    p.obj.position.y = e * hpm() + p.lift * hpm() * 8 + p.off;
+  }
   for (const l of surfaceLabels) {
     const e = Math.max(heightAt(l.lon, l.lat) ?? 0, 0);
     l.obj.position.y = e * hpm() + 0.02;
@@ -328,17 +332,19 @@ const G = {
   peaks: new THREE.Group(), him3: new THREE.Group(), ranges: new THREE.Group(),
   rivers: new THREE.Group(), physio: new THREE.Group(), seas: new THREE.Group(),
   basins: new THREE.Group(), states: new THREE.Group(), cities: new THREE.Group(),
+  monsoon: new THREE.Group(),
 };
 Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
 
 const peakPins = [];
 const capitalPins = [];
 const cityPins = [];
+const monsoonPins = [];                               // arrowheads + labels that float above the terrain
 const fmtIN = n => n.toLocaleString('en-IN');
 
 async function buildOverlays() {
-  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities] = await Promise.all(
-    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities']
+  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, monsoon] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'monsoon']
       .map(n => fetch('data/' + n + '.json').then(r => r.json()))
   );
 
@@ -492,6 +498,34 @@ async function buildOverlays() {
     cityPins.push({ obj: dot, lon: city.lon, lat: city.lat });
     G.cities.add(dot);
   }
+
+  /* monsoon wind flows — draped arrow paths, floating above the terrain,
+     with an arrowhead cone at the tip pointing in the flow direction */
+  for (const m of monsoon) {
+    const mat = lineMaterial(m.c, 3.2, m.type === 'retreat');
+    const ln = drapedLine(m.pts, mat, m.lift);
+    if (!ln) continue;
+    G.monsoon.add(ln);
+
+    const [lon1, lat1] = m.pts[m.pts.length - 2];
+    const [lon2, lat2] = m.pts[m.pts.length - 1];
+    const dir = new THREE.Vector3(toX(lon2) - toX(lon1), 0, toZ(lat2) - toZ(lat1)).normalize();
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.4, 10),
+      new THREE.MeshBasicMaterial({ color: m.c }));
+    head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    head.position.set(toX(lon2), 0, toZ(lat2));
+    G.monsoon.add(head);
+    monsoonPins.push({ obj: head, lon: lon2, lat: lat2, lift: m.lift, off: 0.01 });
+
+    const mid = m.pts[Math.floor(m.pts.length / 2)];
+    const label = makeLabel(m.n + ` <span class="note">${m.note}</span>`, 'monsoon', mid[0], mid[1], 0);
+    G.monsoon.add(label);
+    monsoonPins.push({ obj: label, lon: mid[0], lat: mid[1], lift: m.lift, off: 0.06 });
+  }
+  for (const p of monsoonPins) {                       // set initial height (same formula as redrape)
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    p.obj.position.y = e * hpm() + p.lift * hpm() * 8 + p.off;
+  }
 }
 
 /* ————— peak-label decluttering by distance ————— */
@@ -567,6 +601,7 @@ ly('ly-physio').onchange = e => G.physio.visible = e.target.checked;
 ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
 ly('ly-states').onchange = e => G.states.visible = e.target.checked;
 ly('ly-cities').onchange = e => G.cities.visible = e.target.checked;
+ly('ly-monsoon').onchange = e => G.monsoon.visible = e.target.checked;
 ly('ly-basins').onchange = e => {
   const on = e.target.checked;
   G.basins.visible = on;

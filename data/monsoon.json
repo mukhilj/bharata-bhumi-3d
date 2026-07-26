@@ -1,0 +1,29 @@
+[
+ {"n": "SW Monsoon — Arabian Sea Branch", "note": "onset ~1 June, Kerala coast",
+  "type": "sw", "c": "#3fa9f5", "lift": 16,
+  "pts": [[68.5, 8.5], [74.5, 9.5], [72.9, 15.5], [72.3, 19.2], [70.0, 22.8]]},
+
+ {"n": "SW Monsoon — inland surge", "note": "crosses the Deccan plateau",
+  "type": "sw", "c": "#3fa9f5", "lift": 16,
+  "pts": [[75.5, 12.5], [78.0, 17.5], [80.5, 21.5]]},
+
+ {"n": "SW Monsoon — Bay of Bengal Branch", "note": "onset ~1 June, Andaman & Myanmar coast",
+  "type": "sw", "c": "#2f8fce", "lift": 16,
+  "pts": [[93.0, 11.0], [88.5, 17.5], [85.5, 20.5], [83.5, 24.0], [80.5, 26.0]]},
+
+ {"n": "SW Monsoon — deflected into the Northeast", "note": "turned west by the Himalaya",
+  "type": "sw", "c": "#2f8fce", "lift": 16,
+  "pts": [[89.5, 21.0], [92.0, 25.0], [95.0, 27.0]]},
+
+ {"n": "SW Monsoon — reaches the Northwest", "note": "arrives Punjab & Delhi by ~15 July",
+  "type": "sw", "c": "#3fa9f5", "lift": 16,
+  "pts": [[71.5, 23.5], [74.0, 26.5], [76.5, 29.5]]},
+
+ {"n": "Retreating Monsoon — withdrawal", "note": "withdraws from the Northwest from ~1 Sept",
+  "type": "retreat", "c": "#ff8a5c", "lift": 16,
+  "pts": [[75.0, 30.0], [78.0, 25.5], [80.5, 21.0]]},
+
+ {"n": "Northeast (Retreating) Monsoon", "note": "brings winter rain to Tamil Nadu, Oct–Dec",
+  "type": "retreat", "c": "#ff7043", "lift": 16,
+  "pts": [[88.0, 19.5], [83.5, 15.5], [80.0, 11.0], [78.5, 9.0]]}
+]

@@ -53,6 +53,7 @@ html,body{height:100%;overflow:hidden;background:var(--ink);
 .sw-seas{background:#1c4a76}
 .sw-states{background:repeating-linear-gradient(90deg,#e8edf4 0 4px,transparent 4px 7px)}
 .sw-cities{background:radial-gradient(circle,#aebbcf 40%,transparent 42%),#1d2a40}
+.sw-monsoon{background:linear-gradient(90deg,#3fa9f5 50%,#ff8a5c 50%)}
 
 #basin-list{list-style:none;font-size:13px}
 #basin-list li{display:flex;align-items:center;gap:8px;padding:2.5px 0;color:#d7dfe9}
@@ -73,21 +74,23 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 /* ————— 3D labels ————— */
 .lbl{pointer-events:none;white-space:nowrap;text-shadow:0 1px 3px #000c,0 0 8px #0009;font-weight:600}
-.lbl.peak{color:#fff;font-size:12.5px}
+.lbl.peak{color:#fff;font-size:17px}
 .lbl.peak .h{color:#ffd54f;font-weight:700}
-.lbl.peak .note{display:block;color:#c9d4e2;font-weight:400;font-size:10.5px}
-.lbl.river{color:#8fd6ff;font-size:12px;font-style:italic;font-weight:600}
-.lbl.range{font-size:12.5px;letter-spacing:.05em}
-.lbl.sea{color:#9ecdea;font-size:13px;font-style:italic;letter-spacing:.25em;font-weight:500}
-.lbl.physio{color:#f2dfae;font-size:12.5px;letter-spacing:.18em;font-weight:600}
-.lbl.basin{color:#fff;font-size:12.5px;letter-spacing:.06em;
+.lbl.peak .note{display:block;color:#c9d4e2;font-weight:400;font-size:14px}
+.lbl.river{color:#8fd6ff;font-size:16px;font-style:italic;font-weight:600}
+.lbl.range{font-size:17px;letter-spacing:.05em}
+.lbl.sea{color:#9ecdea;font-size:17px;font-style:italic;letter-spacing:.25em;font-weight:500}
+.lbl.physio{color:#f2dfae;font-size:17px;letter-spacing:.18em;font-weight:600}
+.lbl.basin{color:#fff;font-size:17px;letter-spacing:.06em;
   background:#00000055;padding:1px 7px;border-radius:9px}
-.lbl.trap{color:#ff8a65;font-size:12px;font-weight:700;letter-spacing:.08em}
-.lbl.capital{color:#f2dfae;font-size:11.5px;font-weight:600}
-.lbl.capital .note{display:block;color:#9aa7b8;font-weight:400;font-size:9.5px}
-.lbl.capital.national{color:#ffd54f;font-size:12.5px;font-weight:700}
-.lbl.capital.national .note{color:#ffe9a8;font-size:10px}
-.lbl.city{color:#aebbcf;font-size:10.5px;font-weight:500}
+.lbl.trap{color:#ff8a65;font-size:16px;font-weight:700;letter-spacing:.08em}
+.lbl.capital{color:#f2dfae;font-size:15.5px;font-weight:600}
+.lbl.capital .note{display:block;color:#9aa7b8;font-weight:400;font-size:13px}
+.lbl.capital.national{color:#ffd54f;font-size:17px;font-weight:700}
+.lbl.capital.national .note{color:#ffe9a8;font-size:13.5px}
+.lbl.city{color:#aebbcf;font-size:14px;font-weight:500}
+.lbl.monsoon{font-size:15.5px;font-weight:700;letter-spacing:.03em}
+.lbl.monsoon .note{display:block;color:#c9d4e2;font-weight:400;font-size:12.5px}
 
 /* ————— probe readout ————— */
 #probe{position:absolute;z-index:12;background:#0e1826ee;border:1px solid var(--accent);
