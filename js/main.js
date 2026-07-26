@@ -303,6 +303,10 @@ function redrape() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + p.lift * hpm() * 8 + p.off;
   }
+  for (const p of [...rainJulPins, ...rainJanPins, ...rainAnnualPins]) {
+    const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
+    p.obj.position.y = e * hpm() + 0.009;
+  }
   for (const l of surfaceLabels) {
     const e = Math.max(heightAt(l.lon, l.lat) ?? 0, 0);
     l.obj.position.y = e * hpm() + 0.02;
@@ -333,6 +337,7 @@ const G = {
   rivers: new THREE.Group(), physio: new THREE.Group(), seas: new THREE.Group(),
   basins: new THREE.Group(), states: new THREE.Group(), cities: new THREE.Group(),
   monsoon: new THREE.Group(),
+  rainJul: new THREE.Group(), rainJan: new THREE.Group(), rainAnnual: new THREE.Group(),
 };
 Object.values(G).forEach(g => { g.visible = false; scene.add(g); });
 
@@ -340,11 +345,43 @@ const peakPins = [];
 const capitalPins = [];
 const cityPins = [];
 const monsoonPins = [];                               // arrowheads + labels that float above the terrain
+const rainJulPins = [], rainJanPins = [], rainAnnualPins = [];
 const fmtIN = n => n.toLocaleString('en-IN');
 
+/* rainfall dot colour: dry tan → green → blue → violet for extreme totals */
+function rainColor(mm) {
+  if (mm < 200) return 0xd9a066;
+  if (mm < 500) return 0xd9c467;
+  if (mm < 1000) return 0x8bc34a;
+  if (mm < 1500) return 0x4fc3f7;
+  if (mm < 2500) return 0x2f80ce;
+  if (mm < 5000) return 0x7e57c2;
+  return 0xff4da6;
+}
+const rainRadius = mm => THREE.MathUtils.clamp(0.018 + Math.sqrt(mm) / 500, 0.018, 0.055);
+
+function buildRainfallLayer(rainfall, group, pins, field) {
+  for (const st of rainfall) {
+    const mm = st[field];
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(rainRadius(mm), 16),
+      new THREE.MeshBasicMaterial({ color: rainColor(mm) }));
+    dot.rotation.x = -Math.PI / 2;
+    const e = Math.max(heightAt(st.lon, st.lat) ?? 0, 0);
+    dot.position.set(toX(st.lon), e * hpm() + 0.009, toZ(st.lat));
+    const note = st.note ? ` <span class="note">${st.note}</span>` : '';
+    const label = makeLabel(`${st.n} <span class="mm">${mm.toLocaleString('en-IN')} mm</span>${note}`,
+      'rain', st.lon, st.lat, 0);
+    label.position.set(0, 0.035, 0);
+    label.center.set(0, 0.5);
+    dot.add(label);
+    pins.push({ obj: dot, lon: st.lon, lat: st.lat });
+    group.add(dot);
+  }
+}
+
 async function buildOverlays() {
-  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, monsoon] = await Promise.all(
-    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'monsoon']
+  const [peaks, ranges, rivers, lakes, labels, trap, basins, states, capitals, cities, monsoon, rainfall] = await Promise.all(
+    ['peaks', 'ranges', 'rivers', 'lakes', 'labels', 'trap', 'basins', 'states', 'capitals', 'cities', 'monsoon', 'rainfall']
       .map(n => fetch('data/' + n + '.json').then(r => r.json()))
   );
 
@@ -526,6 +563,11 @@ async function buildOverlays() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + p.lift * hpm() * 8 + p.off;
   }
+
+  /* rainfall received — same stations, three independent layers (Jul / Jan / annual) */
+  buildRainfallLayer(rainfall, G.rainJul, rainJulPins, 'jul');
+  buildRainfallLayer(rainfall, G.rainJan, rainJanPins, 'jan');
+  buildRainfallLayer(rainfall, G.rainAnnual, rainAnnualPins, 'annual');
 }
 
 /* ————— peak-label decluttering by distance ————— */
@@ -602,6 +644,9 @@ ly('ly-seas').onchange = e => G.seas.visible = e.target.checked;
 ly('ly-states').onchange = e => G.states.visible = e.target.checked;
 ly('ly-cities').onchange = e => G.cities.visible = e.target.checked;
 ly('ly-monsoon').onchange = e => G.monsoon.visible = e.target.checked;
+ly('ly-rain-jul').onchange = e => G.rainJul.visible = e.target.checked;
+ly('ly-rain-jan').onchange = e => G.rainJan.visible = e.target.checked;
+ly('ly-rain-annual').onchange = e => G.rainAnnual.visible = e.target.checked;
 ly('ly-basins').onchange = e => {
   const on = e.target.checked;
   G.basins.visible = on;
