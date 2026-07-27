@@ -300,7 +300,7 @@ function redrape() {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + 0.008;
   }
-  for (const p of calendarPins) {
+  for (const p of [...calendarPins, ...windDatePins]) {
     const e = Math.max(heightAt(p.lon, p.lat) ?? 0, 0);
     p.obj.position.y = e * hpm() + 0.012;
   }
@@ -346,7 +346,7 @@ const peakPins = [];
 const capitalPins = [];
 const cityPins = [];
 const calendarPins = [];                              // monsoon-calendar rings (height only, on redrape)
-const windParticles = [];                             // wind streak icons for both SW & NE layers
+const windDatePins = [];                              // onset/withdrawal date labels on the wind layers
 const rainJulPins = [], rainJanPins = [], rainAnnualPins = [];
 const fmtIN = n => n.toLocaleString('en-IN');
 
@@ -395,43 +395,112 @@ function buildRainfallLayer(rainfall, group, pins, field) {
   }
 }
 
-/* wind streak icons float at a fixed atmosphere height, independent of terrain
-   exaggeration/heightAt — they represent air, not something draped on the ground */
-const WIND_Y = 1.6;
-const PARTICLES_PER_PATH = 16;
+/* ————— wind field: windy.com-style streak particles ————————————————————
+   A dense cloud of short line "streaks" drift along a flow field. The field is
+   defined by a set of guide polylines; at any point a particle steers along the
+   nearest guide segment. Streaks are thin LineSegments (one draw call per layer,
+   so hundreds are cheap) that float at a fixed atmosphere height — they are air,
+   not draped on the ground, so they can extend past the terrain frame into the
+   southern hemisphere. ————————————————————————————————————————————————— */
+const WIND_Y = 1.4;
+const TAIL = 0.65;                                     // streak length (degrees, world)
+const windLayers = [];
 
-function buildWindLayer(paths, group) {
-  for (const flow of paths) {
-    for (let i = 0; i < PARTICLES_PER_PATH; i++) {
-      const div = document.createElement('div');
-      div.className = 'lbl mon-arrow';
-      div.innerHTML = `<span style="color:${flow.c}">&#10148;</span>`;
-      const obj = new CSS2DObject(div);
-      obj.glyph = div.firstElementChild;
-      group.add(obj);
-      windParticles.push({
-        obj, pts: flow.pts, phase: i / PARTICLES_PER_PATH, group,
-        jitterLon: (Math.random() - 0.5) * 0.7, jitterLat: (Math.random() - 0.5) * 0.7,
-      });
+function buildSegs(guides) {                           // precompute world geometry per segment
+  const segs = [];
+  for (const g of guides) {
+    for (let i = 0; i < g.length - 1; i++) {
+      const [aLon, aLat] = g[i], [bLon, bLat] = g[i + 1];
+      const ax = toX(aLon), az = toZ(aLat), bx = toX(bLon), bz = toZ(bLat);
+      let wx = bx - ax, wz = bz - az;
+      const len = Math.hypot(wx, wz) || 1e-6;
+      wx /= len; wz /= len;
+      // lon/lat step directions matching a unit world vector
+      segs.push({ ax, az, bx, bz, ux: wx, uz: wz, dLon: wx / KLON, dLat: -wz });
     }
+  }
+  return segs;
+}
+
+function nearestSeg(segs, x, z) {                      // {seg, dist} to closest guide segment in world
+  let best = null, bestD = Infinity;
+  for (const s of segs) {
+    const dx = s.bx - s.ax, dz = s.bz - s.az;
+    const l2 = dx * dx + dz * dz || 1e-9;
+    let t = ((x - s.ax) * dx + (z - s.az) * dz) / l2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const px = s.ax + t * dx, pz = s.az + t * dz;
+    const d = Math.hypot(x - px, z - pz);
+    if (d < bestD) { bestD = d; best = s; }
+  }
+  return { seg: best, dist: bestD };
+}
+
+function buildWindLayer(data, group, color, count, bbox) {
+  const segs = buildSegs(data.guides);
+  const positions = new Float32Array(count * 2 * 3);   // 2 vertices (tail, head) per streak
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 });
+  const lines = new THREE.LineSegments(geom, mat);
+  lines.frustumCulled = false;
+  group.add(lines);
+
+  const particles = [];
+  const seed = () => {                                 // random point that sits near a guide
+    for (let tries = 0; tries < 20; tries++) {
+      const lon = bbox[0] + Math.random() * (bbox[2] - bbox[0]);
+      const lat = bbox[1] + Math.random() * (bbox[3] - bbox[1]);
+      if (nearestSeg(segs, toX(lon), toZ(lat)).dist < 3.2)
+        return { lon, lat, life: 1 + Math.random() * 5 };
+    }
+    return { lon: bbox[0], lat: bbox[1], life: 1 };
+  };
+  for (let i = 0; i < count; i++) particles.push(seed());
+  windLayers.push({ group, segs, positions, geom, particles, seed, bbox });
+}
+
+/* onset / withdrawal date labels, pinned to the ground so they read as
+   "the monsoon reaches here on this date"; decluttered like every other label */
+function buildWindDates(dates, group, cls) {
+  const dotGeo = new THREE.CircleGeometry(0.03, 16);
+  const dotMat = new THREE.MeshBasicMaterial({ color: cls === 'sw' ? 0x3fa9f5 : 0xe64a19 });
+  for (const d of dates) {
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.rotation.x = -Math.PI / 2;
+    const e = Math.max(heightAt(d.lon, d.lat) ?? 0, 0);
+    dot.position.set(toX(d.lon), e * hpm() + 0.012, toZ(d.lat));
+    const label = makeLabel(d.n, 'wind-date wind-' + cls, d.lon, d.lat, 0);
+    label.position.set(0, 0.04, 0);
+    label.center.set(0, 0.5);
+    dot.add(label);
+    windDatePins.push({ obj: dot, lon: d.lon, lat: d.lat });
+    regDeclutter(label, group, 1, d.n);
+    group.add(dot);
   }
 }
 
-/* advances every wind particle along its path and points its icon the right way;
-   only does the (cheap but nonzero) work for a layer that's actually visible */
-const windDrift = { t: 0 };
+const WIND_SPEED = 2.0;                                // world units / second
 function updateWindParticles(dt) {
-  if (!G.windSw.visible && !G.windNe.visible) return;
-  windDrift.t += dt;
-  const azDeg = controls.getAzimuthalAngle() * 180 / Math.PI;
-  for (const p of windParticles) {
-    if (!p.group.visible) continue;
-    const t = (p.phase + windDrift.t * 0.05) % 1;
-    const s = sampleFlow(p.pts, t);
-    const lon = s.lon + p.jitterLon, lat = s.lat + p.jitterLat;
-    p.obj.position.set(toX(lon), WIND_Y, toZ(lat));
-    const bearingDeg = Math.atan2(s.dirX, -s.dirZ) * 180 / Math.PI;
-    p.obj.glyph.style.transform = `rotate(${bearingDeg - 90 - azDeg}deg)`;
+  for (const L of windLayers) {
+    if (!L.group.visible) continue;
+    const pos = L.positions;
+    for (let i = 0; i < L.particles.length; i++) {
+      const p = L.particles[i];
+      const { seg, dist } = nearestSeg(L.segs, toX(p.lon), toZ(p.lat));
+      p.life -= dt;
+      const out = p.lon < L.bbox[0] - 2 || p.lon > L.bbox[2] + 2 ||
+                  p.lat < L.bbox[1] - 2 || p.lat > L.bbox[3] + 2;
+      if (p.life <= 0 || dist > 4 || out || !seg) { Object.assign(p, L.seed()); continue; }
+      p.lon += seg.dLon * WIND_SPEED * dt;
+      p.lat += seg.dLat * WIND_SPEED * dt;
+      const hx = toX(p.lon), hz = toZ(p.lat);
+      const tx = hx - seg.ux * TAIL, tz = hz - seg.uz * TAIL;
+      const o = i * 6;
+      pos[o] = tx;     pos[o + 1] = WIND_Y; pos[o + 2] = tz;   // tail
+      pos[o + 3] = hx; pos[o + 4] = WIND_Y; pos[o + 5] = hz;   // head
+    }
+    L.geom.attributes.position.needsUpdate = true;
   }
 }
 
@@ -610,12 +679,13 @@ async function buildOverlays() {
     G.cities.add(dot);
   }
 
-  /* SW & NE monsoon wind flows — each a set of streamline paths (extending into
-     the southern hemisphere to show the SE trades turning into the monsoon),
-     with a dense stream of small drifting arrow icons per path. Always fully
-     animated when its layer is toggled on; two independent layers, no clock. */
-  buildWindLayer(windSw, G.windSw);
-  buildWindLayer(windNe, G.windNe);
+  /* SW & NE monsoon wind flows — dense windy.com-style streak fields, extending
+     into the southern hemisphere to show the SE trades turning into the monsoon.
+     Two independent layers, each with onset/withdrawal date labels. */
+  buildWindLayer(windSw, G.windSw, 0x8fd4ff, 700, [46, -20, 99, 32]);
+  buildWindLayer(windNe, G.windNe, 0xffb27a, 420, [62, -14, 98, 32]);
+  buildWindDates(windSw.dates, G.windSw, 'sw');
+  buildWindDates(windNe.dates, G.windNe, 'ne');
 
   /* monsoon calendar — per-place onset/withdrawal dates, static reference layer */
   const calRingGeo = new THREE.RingGeometry(0.026, 0.042, 20);
@@ -847,32 +917,6 @@ document.getElementById('compass').addEventListener('click', () => {
   d = Math.atan2(Math.sin(d), Math.cos(d));           // shortest turn direction
   northSpin = { t: 0, theta0: sph.theta, dTheta: d, phi: sph.phi, radius: sph.radius };
 });
-
-function sampleFlow(pts, t) {                          // point + direction at fraction t along a lon/lat path
-  const xz = pts.map(([lon, lat]) => [toX(lon), toZ(lat)]);
-  let total = 0;
-  const segLen = [];
-  for (let i = 0; i < xz.length - 1; i++) {
-    const d = Math.hypot(xz[i + 1][0] - xz[i][0], xz[i + 1][1] - xz[i][1]);
-    segLen.push(d); total += d;
-  }
-  const target = t * total;
-  let acc = 0;
-  for (let i = 0; i < segLen.length; i++) {
-    const segEnd = acc + segLen[i];
-    if (segEnd >= target || i === segLen.length - 1) {
-      const local = segLen[i] > 0 ? THREE.MathUtils.clamp((target - acc) / segLen[i], 0, 1) : 0;
-      return {
-        lon: pts[i][0] + (pts[i + 1][0] - pts[i][0]) * local,
-        lat: pts[i][1] + (pts[i + 1][1] - pts[i][1]) * local,
-        dirX: xz[i + 1][0] - xz[i][0], dirZ: xz[i + 1][1] - xz[i][1],
-      };
-    }
-    acc = segEnd;
-  }
-  const [lon, lat] = pts[pts.length - 1];
-  return { lon, lat, dirX: 1, dirZ: 0 };
-}
 
 /* hypsometric legend */
 (function drawRamp() {

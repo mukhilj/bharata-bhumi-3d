@@ -1,16 +1,16 @@
-[
- {"n": "NW India — dry continental outflow", "c": "#ffb74d",
-  "pts": [[78.0, 30.0], [76.0, 26.0], [74.0, 22.0]]},
-
- {"n": "Northeast Monsoon crosses the Bay of Bengal", "c": "#ff8a5c",
-  "pts": [[92.0, 20.0], [88.0, 16.0], [83.0, 12.0], [80.0, 9.5]]},
-
- {"n": "Northeast Monsoon — Tamil Nadu landfall", "c": "#e64a19",
-  "pts": [[81.0, 10.5], [79.5, 10.0], [78.3, 9.5]]},
-
- {"n": "Crosses the Equator toward the Southern Hemisphere", "c": "#e64a19",
-  "pts": [[85.0, 8.0], [87.0, 2.0], [89.0, -5.0], [91.0, -12.0]]},
-
- {"n": "Arabian Sea — weak NE trade (dry season)", "c": "#ffb74d",
-  "pts": [[75.0, 20.0], [70.0, 15.0], [65.0, 9.0]]}
-]
+{
+ "guides": [
+  [[80,30],[77,25],[74,21],[71,17]],
+  [[85,27],[86,24],[87,21],[89,18]],
+  [[90,18],[86,14],[82,11],[79.9,10.4]],
+  [[80.5,13],[79.6,11],[78.5,9.6]],
+  [[84,7],[86,2],[88,-6],[90,-12]],
+  [[74,20],[69,15],[64,10]]
+ ],
+ "dates": [
+  {"n": "NW India — withdrawal begins · ~1 Sep", "lon": 74.5, "lat": 29.5},
+  {"n": "Retreats from Central India · ~1 Oct", "lon": 80.0, "lat": 22.0},
+  {"n": "NE Monsoon over Bay of Bengal · Oct", "lon": 87.0, "lat": 15.0},
+  {"n": "Tamil Nadu — winter rains · Oct–Dec", "lon": 79.8, "lat": 10.6}
+ ]
+}
